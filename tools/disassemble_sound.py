@@ -9,9 +9,12 @@ import re
 import struct
 import sys
 
+path=os.environ.get('TOOLS_PATH') + "/"
+
 TYPE_CTL = 1
 TYPE_TBL = 2
 
+path=os.environ.get('TOOLS_PATH') + "/"
 
 class AifcEntry:
     def __init__(self, data, book, loop):
@@ -522,7 +525,7 @@ def write_aiff(entry, filename):
         write_aifc(entry, temp)
         temp.flush()
         temp.close()
-        aifc_decode = os.path.join(os.path.dirname(__file__), "aifc_decode")
+        aifc_decode = path + "aifc_decode"
         subprocess.run([aifc_decode, temp.name, filename], check=True)
     finally:
         temp.close()

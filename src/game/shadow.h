@@ -1,7 +1,7 @@
 #ifndef SHADOW_H
 #define SHADOW_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/gbi.h>
 
 /**

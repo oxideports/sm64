@@ -1,3 +1,4 @@
+#include <string.h>
 #include <ultra64.h>
 
 #include "sm64.h"
@@ -154,7 +155,7 @@ static void restore_main_menu_data(s32 srcSlot) {
     add_save_block_signature(&gSaveBuffer.menuData[srcSlot], sizeof(gSaveBuffer.menuData[srcSlot]), MENU_DATA_MAGIC);
 
     // Copy source data to destination
-    bcopy(&gSaveBuffer.menuData[srcSlot], &gSaveBuffer.menuData[destSlot], sizeof(gSaveBuffer.menuData[destSlot]));
+    memmove(&gSaveBuffer.menuData[destSlot], &gSaveBuffer.menuData[srcSlot], sizeof(gSaveBuffer.menuData[destSlot]));
 
     // Write destination data to EEPROM
     write_eeprom_data(&gSaveBuffer.menuData[destSlot], sizeof(gSaveBuffer.menuData[destSlot]));
@@ -166,7 +167,7 @@ static void save_main_menu_data(void) {
         add_save_block_signature(&gSaveBuffer.menuData[0], sizeof(gSaveBuffer.menuData[0]), MENU_DATA_MAGIC);
 
         // Back up data
-        bcopy(&gSaveBuffer.menuData[0], &gSaveBuffer.menuData[1], sizeof(gSaveBuffer.menuData[1]));
+        memmove(&gSaveBuffer.menuData[1], &gSaveBuffer.menuData[0], sizeof(gSaveBuffer.menuData[1]));
 
         // Write to EEPROM
         write_eeprom_data(gSaveBuffer.menuData, sizeof(gSaveBuffer.menuData));
@@ -176,7 +177,7 @@ static void save_main_menu_data(void) {
 }
 
 static void wipe_main_menu_data(void) {
-    bzero(&gSaveBuffer.menuData[0], sizeof(gSaveBuffer.menuData[0]));
+    memset(&gSaveBuffer.menuData[0], 0, sizeof(gSaveBuffer.menuData[0]));
 
     // Set score ages for all courses to 3, 2, 1, and 0, respectively.
     gSaveBuffer.menuData[0].coinScoreAges[0] = 0x3FFFFFFF;
@@ -241,7 +242,7 @@ static void restore_save_file_data(s32 fileIndex, s32 srcSlot) {
                              sizeof(gSaveBuffer.files[fileIndex][srcSlot]), SAVE_FILE_MAGIC);
 
     // Copy source data to destination slot
-    bcopy(&gSaveBuffer.files[fileIndex][srcSlot], &gSaveBuffer.files[fileIndex][destSlot],
+    memmove(&gSaveBuffer.files[fileIndex][destSlot], &gSaveBuffer.files[fileIndex][srcSlot],
           sizeof(gSaveBuffer.files[fileIndex][destSlot]));
 
     // Write destination data to EEPROM
@@ -256,7 +257,7 @@ void save_file_do_save(s32 fileIndex) {
                                  sizeof(gSaveBuffer.files[fileIndex][0]), SAVE_FILE_MAGIC);
 
         // Copy to backup slot
-        bcopy(&gSaveBuffer.files[fileIndex][0], &gSaveBuffer.files[fileIndex][1],
+        memmove(&gSaveBuffer.files[fileIndex][1], &gSaveBuffer.files[fileIndex][0],
               sizeof(gSaveBuffer.files[fileIndex][1]));
 
         // Write to EEPROM
@@ -270,7 +271,7 @@ void save_file_do_save(s32 fileIndex) {
 
 void save_file_erase(s32 fileIndex) {
     touch_high_score_ages(fileIndex);
-    bzero(&gSaveBuffer.files[fileIndex][0], sizeof(gSaveBuffer.files[fileIndex][0]));
+    memset(&gSaveBuffer.files[fileIndex][0], 0, sizeof(gSaveBuffer.files[fileIndex][0]));
 
     gSaveFileModified = TRUE;
     save_file_do_save(fileIndex);
@@ -281,7 +282,7 @@ BAD_RETURN(s32) save_file_copy(s32 srcFileIndex, s32 destFileIndex) {
     UNUSED u8 filler[4];
 
     touch_high_score_ages(destFileIndex);
-    bcopy(&gSaveBuffer.files[srcFileIndex][0], &gSaveBuffer.files[destFileIndex][0],
+    memmove(&gSaveBuffer.files[destFileIndex][0], &gSaveBuffer.files[srcFileIndex][0],
           sizeof(gSaveBuffer.files[destFileIndex][0]));
 
     gSaveFileModified = TRUE;
@@ -295,7 +296,7 @@ void save_file_load_all(void) {
     gMainMenuDataModified = FALSE;
     gSaveFileModified = FALSE;
 
-    bzero(&gSaveBuffer, sizeof(gSaveBuffer));
+    memset(&gSaveBuffer, 0, sizeof(gSaveBuffer));
     read_eeprom_data(&gSaveBuffer, sizeof(gSaveBuffer));
 
     // Verify the main menu data and create a backup copy if only one of the slots is valid.
@@ -340,11 +341,11 @@ void save_file_load_all(void) {
  */
 void save_file_reload(void) {
     // Copy save file data from backup
-    bcopy(&gSaveBuffer.files[gCurrSaveFileNum - 1][1], &gSaveBuffer.files[gCurrSaveFileNum - 1][0],
+    memmove(&gSaveBuffer.files[gCurrSaveFileNum - 1][0], &gSaveBuffer.files[gCurrSaveFileNum - 1][1],
           sizeof(gSaveBuffer.files[gCurrSaveFileNum - 1][0]));
 
     // Copy main menu data from backup
-    bcopy(&gSaveBuffer.menuData[1], &gSaveBuffer.menuData[0], sizeof(gSaveBuffer.menuData[0]));
+    memmove(&gSaveBuffer.menuData[0], &gSaveBuffer.menuData[1], sizeof(gSaveBuffer.menuData[0]));
 
     gMainMenuDataModified = FALSE;
     gSaveFileModified = FALSE;

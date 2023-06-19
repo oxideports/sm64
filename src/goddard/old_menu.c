@@ -1,4 +1,4 @@
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <stdio.h>
 
 #include "debug_utils.h"

@@ -1,4 +1,4 @@
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "sm64.h"
 #include "area.h"
@@ -254,9 +254,7 @@ f32 painting_ripple_y(struct Painting *painting, s8 ySource) {
             return painting->size / 2.0; // some concentric ripples don't care about Mario
             break;
     }
-#ifdef AVOID_UB
     return 0.0f;
-#endif
 }
 
 /**
@@ -282,9 +280,7 @@ f32 painting_nearest_4th(struct Painting *painting) {
     } else if (painting->floorEntered & ENTER_RIGHT) {
         return thirdQuarter;
     }
-#ifdef AVOID_UB
     return 0.0f;
-#endif
 }
 
 /**
@@ -316,9 +312,7 @@ f32 painting_ripple_x(struct Painting *painting, s8 xSource) {
             return painting->size / 2.0;
             break;
     }
-#ifdef AVOID_UB
     return 0.0f;
-#endif
 }
 
 /**
@@ -1072,7 +1066,6 @@ void reset_painting(struct Painting *painting) {
 
     gRipplingPainting = NULL;
 
-#ifdef NO_SEGMENTED_MEMORY
     // Make sure all variables are reset correctly.
     // With segmented memory the segments that contain the relevant
     // Painting structs are reloaded from ROM upon level load.
@@ -1089,7 +1082,6 @@ void reset_painting(struct Painting *painting) {
         // that moves the painting stops during level unload.
         painting->posX = 3456.0f;
     }
-#endif
 }
 
 /**

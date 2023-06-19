@@ -1,7 +1,7 @@
 #ifndef SCREEN_TRANSITION_H
 #define SCREEN_TRANSITION_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/gbi.h>
 
 #include "macros.h"

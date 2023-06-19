@@ -1,7 +1,7 @@
 #ifndef PROFILER_H
 #define PROFILER_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/os_time.h>
 
 #include "types.h"

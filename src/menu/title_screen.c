@@ -1,4 +1,4 @@
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "audio/external.h"
 #include "engine/math_util.h"

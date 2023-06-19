@@ -11,7 +11,6 @@
 #include "menu/debug_level_select.h"
 #include "menu/intro_geo.h"
 
-#include "make_const_nonconst.h"
 
 #include "levels/intro/header.h"
 
@@ -139,4 +138,3 @@ const GeoLayout intro_geo_000414[] = {
    GEO_CLOSE_NODE(),
    GEO_END(),
 };
-

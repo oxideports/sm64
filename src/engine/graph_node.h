@@ -1,7 +1,7 @@
 #ifndef GRAPH_NODE_H
 #define GRAPH_NODE_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/gbi.h>
 
 #include "types.h"

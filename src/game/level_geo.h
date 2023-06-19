@@ -1,7 +1,7 @@
 #ifndef LEVEL_GEO_H
 #define LEVEL_GEO_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/gbi.h>
 
 Gfx *geo_envfx_main(s32 callContext, struct GraphNode *node, Mat4 mtxf);

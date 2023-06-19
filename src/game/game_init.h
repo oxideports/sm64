@@ -1,15 +1,15 @@
 #ifndef GAME_INIT_H
 #define GAME_INIT_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/gbi.h>
-#include <PR/os_cont.h>
+#include <libultra/os_cont.h>
 #include <PR/os_message.h>
 
 #include "types.h"
 #include "memory.h"
 
-#define GFX_POOL_SIZE 6400 // Size of how large the master display list (gDisplayListHead) can be
+#define GFX_POOL_SIZE 1
 
 struct GfxPool {
     Gfx buffer[GFX_POOL_SIZE];
@@ -36,8 +36,9 @@ extern uintptr_t gPhysicalZBuffer;
 extern void *gMarioAnimsMemAlloc;
 extern void *gDemoInputsMemAlloc;
 extern struct SPTask *gGfxSPTask;
-extern Gfx *gDisplayListHead;
-extern u8 *gGfxPoolEnd;
+extern struct AllocOnlyPool *gGfxAllocOnlyPool;
+extern Gfx *gDisplayListHeadInChunk;
+extern Gfx *gDisplayListEndInChunk;
 extern struct GfxPool *gGfxPool;
 extern u8 gControllerBits;
 extern s8 gEepromProbe;
@@ -71,5 +72,8 @@ void end_master_display_list(void);
 void render_init(void);
 void select_gfx_pool(void);
 void display_and_vsync(void);
+
+Gfx **alloc_next_dl(void);
+#define gDisplayListHead (*(gDisplayListEndInChunk - gDisplayListHeadInChunk >= 2 ? &gDisplayListHeadInChunk : alloc_next_dl()))
 
 #endif // GAME_INIT_H

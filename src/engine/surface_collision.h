@@ -1,7 +1,7 @@
 #ifndef SURFACE_COLLISION_H
 #define SURFACE_COLLISION_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "types.h"
 

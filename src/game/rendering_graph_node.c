@@ -1,4 +1,4 @@
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "area.h"
 #include "engine/math_util.h"
@@ -276,6 +276,9 @@ static void geo_process_level_of_detail(struct GraphNodeLevelOfDetail *node) {
     Mtx *mtx = gMatStackFixed[gMatStackIndex];
     s16 distanceFromCam = -GET_HIGH_S16_OF_32(mtx->m[1][3]); // z-component of the translation column
 #endif
+
+    // We assume modern hardware is powerful enough to draw the most detailed variant
+    distanceFromCam = 0;
 
     if (node->minDistance <= distanceFromCam && distanceFromCam < node->maxDistance) {
         if (node->node.children != 0) {
@@ -762,11 +765,9 @@ static s32 obj_is_in_view(struct GraphNodeObject *node, Mat4 matrix) {
     // the amount of units between the center of the screen and the horizontal edge
     // given the distance from the object to the camera.
 
-#ifdef WIDESCREEN
     // This multiplication should really be performed on 4:3 as well,
     // but the issue will be more apparent on widescreen.
     hScreenEdge *= GFX_DIMENSIONS_ASPECT_RATIO;
-#endif
 
     if (geo != NULL && geo->type == GRAPH_NODE_TYPE_CULLING_RADIUS) {
         cullingRadius =
@@ -1046,8 +1047,7 @@ void geo_process_root(struct GraphNodeRoot *node, Vp *b, Vp *c, s32 clearColor) 
         Mtx *initialMatrix;
         Vp *viewport = alloc_display_list(sizeof(*viewport));
 
-        gDisplayListHeap = alloc_only_pool_init(main_pool_available() - sizeof(struct AllocOnlyPool),
-                                                MEMORY_POOL_LEFT);
+        gDisplayListHeap = alloc_only_pool_init();
         initialMatrix = alloc_display_list(sizeof(*initialMatrix));
         gMatStackIndex = 0;
         gCurrAnimType = 0;
@@ -1076,8 +1076,6 @@ void geo_process_root(struct GraphNodeRoot *node, Vp *b, Vp *c, s32 clearColor) 
         }
         gCurGraphNodeRoot = NULL;
         if (gShowDebugText) {
-            print_text_fmt_int(180, 36, "MEM %d",
-                               gDisplayListHeap->totalSpace - gDisplayListHeap->usedSpace);
         }
         main_pool_free(gDisplayListHeap);
     }

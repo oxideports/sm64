@@ -1,7 +1,7 @@
 #ifndef GD_MATH_H
 #define GD_MATH_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "gd_types.h"
 #include "macros.h"

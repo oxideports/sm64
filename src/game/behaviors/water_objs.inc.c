@@ -74,7 +74,9 @@ void bhv_small_water_wave_loop(void) {
     if (o->oPosY > sp1C) {
         o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
         o->oPosY += 5.0f;
-        if (gFreeObjectList.next != NULL) {
+        if (
+            TRUE
+        ) {
             spawn_object(o, MODEL_SMALL_WATER_SPLASH, bhvObjectWaterSplash);
         }
     }

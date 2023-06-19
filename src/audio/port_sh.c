@@ -24,126 +24,31 @@ void seq_player_fade_to_zero_volume(s32 arg0, s32 numFrames);
 void func_802ad7ec(u32 arg0);
 
 struct SPTask *create_next_audio_frame_task(void) {
-    u32 samplesRemainingInAI;
+    return NULL;
+}
+void create_next_audio_buffer(s16 *samples, u32 num_samples) {
     s32 writtenCmds;
-    s32 index;
-    OSTask_t *task;
-    s32 flags;
-    s16 *currAiBuffer;
-    s32 oldDmaCount;
-    s32 sp38;
-    s32 sp34;
-    s32 writtenCmdsCopy;
-
+    OSMesg msg;
     gAudioFrameCount++;
-    if (gAudioFrameCount % gAudioBufferParameters.presetUnk4 != 0) {
-        if ((gAudioFrameCount % gAudioBufferParameters.presetUnk4) + 1 == gAudioBufferParameters.presetUnk4) {
-            return D_SH_80314FCC;
-        }
-        return NULL;
-    }
-    osSendMesg(D_SH_80350F38, (OSMesg) gAudioFrameCount, OS_MESG_NOBLOCK);
-
-    gAudioTaskIndex ^= 1;
-    gCurrAiBufferIndex++;
-    gCurrAiBufferIndex %= NUMAIBUFFERS;
-    index = (gCurrAiBufferIndex - 2 + NUMAIBUFFERS) % NUMAIBUFFERS;
-    samplesRemainingInAI = osAiGetLength() / 4;
-
-    if (gAudioLoadLockSH < 0x10U) {
-        if (gAiBufferLengths[index] != 0) {
-            osAiSetNextBuffer(gAiBuffers[index], gAiBufferLengths[index] * 4);
-        }
-    }
-
-    oldDmaCount = gCurrAudioFrameDmaCount;
-    if (oldDmaCount > AUDIO_FRAME_DMA_QUEUE_SIZE) {
-    }
-    gCurrAudioFrameDmaCount = 0;
-
     decrease_sample_dma_ttls();
-    func_sh_802f41e4(gAudioResetStatus);
-    if (osRecvMesg(D_SH_80350F88, (OSMesg *) &sp38, OS_MESG_NOBLOCK) != -1) {
+    if (osRecvMesg(D_SH_80350F88, &msg, 0) != -1) {
+        gAudioResetPresetIdToLoad = (u8) (intptr_t) msg;
         if (gAudioResetStatus == 0) {
             gAudioResetStatus = 5;
         }
-        gAudioResetPresetIdToLoad = (u8) sp38;
     }
 
     if (gAudioResetStatus != 0) {
-        if (audio_shut_down_and_reset_step() == 0) {
-            if (gAudioResetStatus == 0) {
-                osSendMesg(D_SH_80350FA8, (OSMesg) (s32) gAudioResetPresetIdToLoad, OS_MESG_NOBLOCK);
-            }
-            D_SH_80314FCC = 0;
-            return NULL;
-        }
+        audio_reset_session();
+        gAudioResetStatus = 0;
     }
-    if (gAudioLoadLockSH >= 0x11U) {
-        return NULL;
+    while (osRecvMesg(D_SH_80350F68, &msg, OS_MESG_NOBLOCK) != -1) {
+        func_802ad7ec((u32) msg);
     }
-    if (gAudioLoadLockSH != 0) {
-        gAudioLoadLockSH++;
-    }
-
-    gAudioTask = &gAudioTasks[gAudioTaskIndex];
-    gAudioCmd = (u64 *) gAudioCmdBuffers[gAudioTaskIndex];
-    index = gCurrAiBufferIndex;
-    currAiBuffer = gAiBuffers[index];
-
-    gAiBufferLengths[index] = (s16) ((((gAudioBufferParameters.samplesPerFrameTarget - samplesRemainingInAI) +
-         EXTRA_BUFFERED_AI_SAMPLES_TARGET) & ~0xf) + SAMPLES_TO_OVERPRODUCE);
-    if (gAiBufferLengths[index] < gAudioBufferParameters.minAiBufferLength) {
-        gAiBufferLengths[index] = gAudioBufferParameters.minAiBufferLength;
-    }
-    if (gAiBufferLengths[index] > gAudioBufferParameters.maxAiBufferLength) {
-        gAiBufferLengths[index] = gAudioBufferParameters.maxAiBufferLength;
-    }
-
-    if (osRecvMesg(D_SH_80350F68, (OSMesg *) &sp34, 0) != -1) {
-        do {
-            func_802ad7ec(sp34);
-        } while (osRecvMesg(D_SH_80350F68, (OSMesg *) &sp34, 0) != -1);
-    }
-
-    flags = 0;
-    gAudioCmd = synthesis_execute(gAudioCmd, &writtenCmds, currAiBuffer, gAiBufferLengths[index]);
-    gAudioRandom = (u32) (osGetCount() * (gAudioRandom + gAudioFrameCount));
-    gAudioRandom = (u32) (gAiBuffers[index][gAudioFrameCount & 0xFF] + gAudioRandom);
-
-    index = gAudioTaskIndex;
-    gAudioTask->msgqueue = NULL;
-    gAudioTask->msg = NULL;
-
-    task = &gAudioTask->task.t;
-    task->type = M_AUDTASK;
-    task->flags = flags;
-    task->ucode_boot = rspF3DBootStart;
-    task->ucode_boot_size = (u8 *) rspF3DStart - (u8 *) rspF3DBootStart;
-    task->ucode = rspAspMainStart;
-    task->ucode_data = rspAspMainDataStart;
-    task->ucode_size = 0x1000;
-    task->ucode_data_size = (rspAspMainDataEnd - rspAspMainDataStart) * sizeof(u64);
-    task->dram_stack = NULL;
-    task->dram_stack_size = 0;
-    task->output_buff = NULL;
-    task->output_buff_size = NULL;
-    task->data_ptr = gAudioCmdBuffers[index];
-    task->data_size = writtenCmds * sizeof(u64);
-    task->yield_data_ptr = NULL;
-    task->yield_data_size = 0;
-
-    writtenCmdsCopy = writtenCmds;
-    if (D_SH_80314FC8 < writtenCmdsCopy) {
-        D_SH_80314FC8 = writtenCmdsCopy;
-    }
-
-    if (gAudioBufferParameters.presetUnk4 == 1) {
-        return gAudioTask;
-    } else {
-        D_SH_80314FCC = gAudioTask;
-        return NULL;
-    }
+    synthesis_execute(gAudioCmdBuffers[0], &writtenCmds, samples, num_samples);
+    gAudioRandom = ((gAudioRandom + gAudioFrameCount) * gAudioFrameCount);
+    gAudioRandom = gAudioRandom + writtenCmds / 8;
+    gCurrAudioFrameDmaCount = 0;
 }
 
 void eu_process_audio_cmd(struct EuAudioCmd *cmd) {

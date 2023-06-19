@@ -1,3 +1,4 @@
+#include <string.h>
 #include <ultra64.h>
 
 #include "sm64.h"
@@ -343,8 +344,8 @@ s32 envfx_init_bubble(s32 mode) {
         return FALSE;
     }
 
-    bzero(gEnvFxBuffer, sBubbleParticleCount * sizeof(struct EnvFxParticle));
-    bzero(gEnvFxBubbleConfig, sizeof(gEnvFxBubbleConfig));
+    memset(gEnvFxBuffer, 0, sBubbleParticleCount * sizeof(struct EnvFxParticle));
+    memset(gEnvFxBubbleConfig, 0, sizeof(gEnvFxBubbleConfig));
 
     switch (mode) {
         case ENVFX_LAVA_BUBBLES:

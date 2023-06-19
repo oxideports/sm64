@@ -1,7 +1,7 @@
 #ifndef INTRO_GEO_H
 #define INTRO_GEO_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/gbi.h>
 
 #include "types.h"

@@ -1,7 +1,7 @@
 #ifndef SEGMENT7_H
 #define SEGMENT7_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/gbi.h>
 
 // from main menu segment 7

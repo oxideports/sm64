@@ -2,7 +2,12 @@
  * Bruteforcing decoder for converting ADPCM-encoded AIFC into AIFF, in a way
  * that roundtrips with vadpcm_enc.
  */
+
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <unistd.h>
+#endif
 #include <assert.h>
 #include <math.h>
 #include <string.h>
@@ -19,13 +24,25 @@ typedef unsigned int u32;
 typedef unsigned long long u64;
 typedef float f32;
 
+#ifdef _WIN32
+#define BSWAP16(x) x = _byteswap_ushort(x)
+#define BSWAP32(x) x = _byteswap_ulong(x)
+#define bswap16(x) _byteswap_ushort(x)
+#define bswap32(x) _byteswap_ulong(x)
+#else
 #define bswap16(x) __builtin_bswap16(x)
 #define bswap32(x) __builtin_bswap32(x)
 #define BSWAP16(x) x = __builtin_bswap16(x)
 #define BSWAP32(x) x = __builtin_bswap32(x)
+#endif
 #define BSWAP16_MANY(x, n) for (s32 _i = 0; _i < n; _i++) BSWAP16((x)[_i])
 
+#ifdef _WIN32
+#include <stdnoreturn.h>
+#define NORETURN noreturn
+#else
 #define NORETURN __attribute__((noreturn))
+#endif
 #define UNUSED __attribute__((unused))
 
 typedef struct {

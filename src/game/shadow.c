@@ -1,4 +1,4 @@
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/gbi.h>
 #include <math.h>
 
@@ -12,6 +12,9 @@
 #include "segment2.h"
 #include "shadow.h"
 #include "sm64.h"
+
+// Avoid Z-fighting
+#define find_floor_height_and_data 0.4 + find_floor_height_and_data
 
 /**
  * @file shadow.c
@@ -187,9 +190,7 @@ f32 get_water_level_below_shadow(struct Shadow *s) {
     }
     //! @bug Missing return statement. This compiles to return `waterLevel`
     //! incidentally.
-#ifdef AVOID_UB
     return waterLevel;
-#endif
 }
 
 /**

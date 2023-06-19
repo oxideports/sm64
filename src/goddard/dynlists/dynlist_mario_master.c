@@ -1,4 +1,4 @@
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "dynlist_macros.h"
 #include "dynlists.h"

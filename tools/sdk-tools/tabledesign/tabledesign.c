@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <getopt.h>
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 #include <audiofile.h>
 #include "tabledesign.h"
 
@@ -79,34 +81,66 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    while ((opt = getopt(argc, argv, "o:s:t:i:f:")) != -1)
-    {
-        switch (opt)
+    #ifndef _WIN32
+        while ((opt = getopt(argc, argv, "o:s:t:i:f:")) != -1)
         {
-        case 'o':
-            if (sscanf(optarg, "%d", &order) != 1)
-                order = 2;
-            break;
-        case 's':
-            if (sscanf(optarg, "%d", &bits) != 1)
-                bits = 2;
-            break;
-        case 'f':
-            if (sscanf(optarg, "%d", &frameSize) != 1)
-                frameSize = 16;
-            break;
-        case 'i':
-            if (sscanf(optarg, "%d", &refineIters) != 1)
-                refineIters = 2;
-            break;
-        case 't':
-            if (sscanf(optarg, "%lf", &thresh) != 1)
-                thresh = 10.0;
-            break;
+            switch (opt)
+            {
+            case 'o':
+                if (sscanf(optarg, "%d", &order) != 1)
+                    order = 2;
+                break;
+            case 's':
+                if (sscanf(optarg, "%d", &bits) != 1)
+                    bits = 2;
+                break;
+            case 'f':
+                if (sscanf(optarg, "%d", &frameSize) != 1)
+                    frameSize = 16;
+                break;
+            case 'i':
+                if (sscanf(optarg, "%d", &refineIters) != 1)
+                    refineIters = 2;
+                break;
+            case 't':
+                if (sscanf(optarg, "%lf", &thresh) != 1)
+                    thresh = 10.0;
+                break;
+            }
         }
-    }
 
-    argv = &argv[optind - 1];
+        argv = &argv[optind - 1];
+    #else
+        for (int i = 1; i < argc; i++)
+        {
+            if (argv[i][0] == '-')
+            {
+                switch (argv[i][1])
+                {
+                case 'o':
+                    if (sscanf(argv[i + 1], "%d", &order) != 1)
+                        order = 2;
+                    break;
+                case 's':
+                    if (sscanf(argv[i + 1], "%d", &bits) != 1)
+                        bits = 2;
+                    break;
+                case 'f':
+                    if (sscanf(argv[i + 1], "%d", &frameSize) != 1)
+                        frameSize = 16;
+                    break;
+                case 'i':
+                    if (sscanf(argv[i + 1], "%d", &refineIters) != 1)
+                        refineIters = 2;
+                    break;
+                case 't':
+                    if (sscanf(argv[i + 1], "%lf", &thresh) != 1)
+                        thresh = 10.0;
+                    break;
+                }
+            }
+        }
+    #endif
 
     afFile = AFopenfile(argv[1], MODE_READ, NULL);
     if (afFile == NULL)

@@ -3,6 +3,7 @@ import sys
 import os
 import json
 
+path=os.environ.get('TOOLS_PATH') + "/"
 
 def read_asset_map():
     with open("assets.json") as f:
@@ -142,8 +143,7 @@ def main():
             print("Failed to open " + fname + "! " + str(e))
             sys.exit(1)
         sha1 = hashlib.sha1(roms[lang]).hexdigest()
-        with open("sm64." + lang + ".sha1", "r") as f:
-            expected_sha1 = f.read().split()[0]
+        expected_sha1 = "9bef1128717f958171a4afac3ed78ee2bb4e86ce"
         if sha1 != expected_sha1:
             print(
                 fname
@@ -154,10 +154,16 @@ def main():
             )
             sys.exit(1)
 
+    #make = "make"
+
+    #for path in os.environ["PATH"].split(os.pathsep):
+    #    if os.path.isfile(os.path.join(path, "gmake")):
+    #        make = "gmake"
+
     # Make sure tools exist
-    subprocess.check_call(
-        ["make", "-s", "-C", "tools/", "n64graphics", "skyconv", "mio0", "aifc_decode"]
-    )
+    #subprocess.check_call(
+    #    [make, "-s", "-C", "tools/", "n64graphics", "skyconv", "mio0", "aifc_decode"]
+    #)
 
     # Go through the assets in roughly alphabetical order (but assets in the same
     # mio0 file still go together).
@@ -195,7 +201,7 @@ def main():
         if mio0 is not None:
             image = subprocess.run(
                 [
-                    "./tools/mio0",
+                    path + "mio0",
                     "-d",
                     "-o",
                     str(mio0),
@@ -225,7 +231,7 @@ def main():
                             imagetype =  "cake" + ("-eu" if "eu" in asset else "")
                         subprocess.run(
                             [
-                                "./tools/skyconv",
+                                path + "skyconv",
                                 "--type",
                                 imagetype,
                                 "--combine",
@@ -239,7 +245,7 @@ def main():
                         fmt = asset.split(".")[-2]
                         subprocess.run(
                             [
-                                "./tools/n64graphics",
+                                path + "n64graphics",
                                 "-e",
                                 png_file.name,
                                 "-g",

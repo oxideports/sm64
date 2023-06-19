@@ -1,7 +1,7 @@
 #ifndef BUFFERS_H
 #define BUFFERS_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "game/save_file.h"
 #include "game/game_init.h"
@@ -29,6 +29,7 @@ extern struct SaveBuffer gSaveBuffer;
 
 extern u8 gGfxSPTaskStack[];
 
-extern struct GfxPool gGfxPools[2];
+#define GFX_NUM_POOLS 1
+extern struct GfxPool gGfxPools[GFX_NUM_POOLS];
 
 #endif // BUFFERS_H

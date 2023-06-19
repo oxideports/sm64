@@ -1,11 +1,9 @@
 #include <ultra64.h>
 #include "sm64.h"
-#include "segment_symbols.h"
 #include "level_commands.h"
 
 #include "levels/intro/header.h"
 
-#include "make_const_nonconst.h"
 
 const LevelScript level_script_entry[] = {
     INIT_LEVEL(),

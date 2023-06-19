@@ -53,7 +53,6 @@
 #include "levels/bowser_2/header.h"
 #include "levels/ttm/header.h"
 
-#include "make_const_nonconst.h"
 #include "behavior_data.h"
 
 #define BC_B(a) _SHIFTL(a, 24, 8)
@@ -114,7 +113,7 @@
 // Often used to end behavior scripts that do not contain an infinite loop.
 #define BREAK() \
     BC_B(0x0A)
-    
+
 // Exits the behavior script, unused.
 #define BREAK_UNUSED() \
     BC_B(0x0B)
@@ -175,15 +174,15 @@
 #define ADD_INT_RAND_RSHIFT(field, min, rshift) \
     BC_BBH(0x17, field, min), \
     BC_H(rshift)
-    
+
 // No operation. Unused.
 #define CMD_NOP_1(field) \
     BC_BB(0x18, field)
-    
+
 // No operation. Unused.
 #define CMD_NOP_2(field) \
     BC_BB(0x19, field)
-    
+
 // No operation. Unused.
 #define CMD_NOP_3(field) \
     BC_BB(0x1A, field)
@@ -6106,5 +6105,3 @@ const BehaviorScript bhvIntroScene[] = {
         CALL_NATIVE(bhv_intro_scene_loop),
     END_LOOP(),
 };
-
-

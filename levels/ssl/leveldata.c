@@ -1,4 +1,4 @@
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/gbi.h>
 
 #include "dialog_ids.h"
@@ -11,7 +11,6 @@
 #include "textures.h"
 #include "types.h"
 
-#include "make_const_nonconst.h"
 // LEVEL DATA
 #include "levels/ssl/texture.inc.c"
 // This is an oddity, but it is assumed this because of the likelyhood SSL's

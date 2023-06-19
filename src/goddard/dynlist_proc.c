@@ -1,4 +1,4 @@
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <stdio.h>
 
 #include "bad_declarations.h"
@@ -627,11 +627,7 @@ struct GdObj *d_makeobj(enum DObjTypes type, DynObjName name) {
             d_makeobj(D_GROUP, name);
             ((struct ObjGroup *) sDynListCurObj)->linkType = 1;
 //! @bug Returns garbage when making `D_DATA_GRP` object
-#ifdef AVOID_UB
             return NULL;
-#else
-            return;
-#endif
         case D_CAMERA:
             dobj = &make_camera(0, NULL)->header;
             break;

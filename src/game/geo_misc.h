@@ -1,7 +1,7 @@
 #ifndef GEO_MISC_H
 #define GEO_MISC_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/gbi.h>
 
 enum FlyingCarpetState {

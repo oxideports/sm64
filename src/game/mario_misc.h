@@ -1,7 +1,7 @@
 #ifndef MARIO_MISC_H
 #define MARIO_MISC_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "macros.h"
 #include "types.h"

@@ -10,6 +10,17 @@
 #include <stdbool.h>
 #include <math.h>
 
+#ifdef _MSC_VER
+#ifndef PATH_MAX
+#define PATH_MAX 250
+#endif
+#define ssize_t long
+#include <malloc.h>
+# define SPX_VLA(__t,__x,__s) __t *__x = (__t*)_alloca((__s)*sizeof(__t))
+#else
+# define SPX_VLA(__t,__x,__s) __t __x[__s]
+#endif
+
 #include "n64graphics.h"
 #include "utils.h"
 
@@ -431,8 +442,8 @@ void combine_cakeimg(const char *input, const char *output, bool eu) {
         for (int i = 0; i < H; i++) {
             for (int j = 0; j < W; j++) {
                 //Read the full tile
-                uint8_t buf[SMALLH * SMALLW * 2];
-                if (fread(buf, sizeof(buf), 1, file) != 1) goto fail;
+                SPX_VLA(uint8_t, buf, SMALLH * SMALLW * 2);
+                if (fread(buf, SMALLH * SMALLW * 2, 1, file) != 1) goto fail;
                 rgba *tile = raw2rgba(buf, SMALLH, SMALLW, 16);
 
                 //Only write the unique parts of each tile
@@ -452,8 +463,8 @@ void combine_cakeimg(const char *input, const char *output, bool eu) {
         combined = malloc(SMALLH*H * SMALLW*W * sizeof(rgba));
         for (int i = 0; i < H; i++) {
             for (int j = 0; j < W; j++) {
-                uint8_t buf[SMALLH * SMALLW * 2];
-                if (fread(buf, sizeof(buf), 1, file) != 1) goto fail;
+                SPX_VLA(uint8_t, buf, SMALLH * SMALLW * 2);
+                if (fread(buf, SMALLH * SMALLW * 2, 1, file) != 1) goto fail;
                 rgba *tile = raw2rgba(buf, SMALLH, SMALLW, 16);
                 for (int y = 0; y < SMALLH; y++) {
                     for (int x = 0; x < SMALLW; x++) {

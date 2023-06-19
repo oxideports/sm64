@@ -1,7 +1,7 @@
 #ifndef SEGMENT2_H
 #define SEGMENT2_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/gbi.h>
 
 extern u8 seg2_course_name_table[];

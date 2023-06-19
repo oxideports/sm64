@@ -1,7 +1,7 @@
 #ifndef AUDIO_EXTERNAL_H
 #define AUDIO_EXTERNAL_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "types.h"
 
