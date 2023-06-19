@@ -1,4 +1,4 @@
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "sm64.h"
 #include "actors/common1.h"

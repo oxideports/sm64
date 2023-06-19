@@ -1,7 +1,7 @@
 #ifndef PLATFORM_DISPLACEMENT_H
 #define PLATFORM_DISPLACEMENT_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "types.h"
 

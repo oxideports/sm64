@@ -9,6 +9,7 @@
 #include "internal.h"
 #include "external.h"
 
+#include "../pc/mixer.h"
 
 #define DMEM_ADDR_TEMP 0x0
 #define DMEM_ADDR_RESAMPLED 0x20
@@ -1375,10 +1376,6 @@ u64 *note_apply_headset_pan_effects(u64 *cmd, struct Note *note, s32 bufLen, s32
                 pitch = (bufLen << 0xf) / (bufLen + panShift - prevPanShift);
             }
 
-#if defined(VERSION_EU) && !defined(AVOID_UB)
-            if (unkDebug) { // UB
-            }
-#endif
             aSetBuffer(cmd++, 0, DMEM_ADDR_NOTE_PAN_TEMP, DMEM_ADDR_TEMP, panShift + bufLen - prevPanShift);
             aResample(cmd++, 0, pitch, VIRTUAL_TO_PHYSICAL2(note->synthesisBuffers->panResampleState));
         }

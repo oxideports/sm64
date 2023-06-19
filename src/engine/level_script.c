@@ -1,7 +1,5 @@
 #include <ultra64.h>
-#ifdef NO_SEGMENTED_MEMORY
 #include <string.h>
-#endif
 
 #include "sm64.h"
 #include "audio/external.h"
@@ -54,6 +52,8 @@ static uintptr_t *sStackBase = NULL;
 static s16 sScriptStatus;
 static s32 sRegister;
 static struct LevelCommand *sCurrentCmd;
+
+static struct MemoryPool *sMemPoolForGoddard;
 
 static s32 eval_script_op(s8 op, s32 arg) {
     s32 result = 0;
@@ -280,17 +280,19 @@ static void level_cmd_load_mio0(void) {
     sCurrentCmd = CMD_NEXT;
 }
 
+static void *alloc_for_goddard(u32 size) {
+    return mem_pool_alloc(sMemPoolForGoddard, size);
+}
+
+static void free_for_goddard(void *ptr) {
+    mem_pool_free(sMemPoolForGoddard, ptr);
+}
+
 static void level_cmd_load_mario_head(void) {
-    // TODO: Fix these hardcoded sizes
-    void *addr = main_pool_alloc(DOUBLE_SIZE_ON_64_BIT(0xE1000), MEMORY_POOL_LEFT);
-    if (addr != NULL) {
-        gdm_init(addr, DOUBLE_SIZE_ON_64_BIT(0xE1000));
-        gd_add_to_heap(gZBuffer, sizeof(gZBuffer)); // 0x25800
-        gd_add_to_heap(gFramebuffer0, 3 * sizeof(gFramebuffer0)); // 0x70800
-        gdm_setup();
-        gdm_maketestdl(CMD_GET(s16, 2));
-    } else {
-    }
+    sMemPoolForGoddard = mem_pool_init(0, 0);
+    gdm_init(alloc_for_goddard, free_for_goddard);
+    gdm_setup();
+    gdm_maketestdl(CMD_GET(s16, 2));
 
     sCurrentCmd = CMD_NEXT;
 }
@@ -320,8 +322,7 @@ static void level_cmd_clear_level(void) {
 
 static void level_cmd_alloc_level_pool(void) {
     if (sLevelPool == NULL) {
-        sLevelPool = alloc_only_pool_init(main_pool_available() - sizeof(struct AllocOnlyPool),
-                                          MEMORY_POOL_LEFT);
+        sLevelPool = alloc_only_pool_init();
     }
 
     sCurrentCmd = CMD_NEXT;
@@ -330,7 +331,6 @@ static void level_cmd_alloc_level_pool(void) {
 static void level_cmd_free_level_pool(void) {
     s32 i;
 
-    alloc_only_pool_resize(sLevelPool, sLevelPool->usedSpace);
     sLevelPool = NULL;
 
     for (i = 0; i < 8; i++) {
@@ -594,9 +594,6 @@ static void level_cmd_set_gamma(void) {
 
 static void level_cmd_set_terrain_data(void) {
     if (sCurrAreaIndex != -1) {
-#ifndef NO_SEGMENTED_MEMORY
-        gAreas[sCurrAreaIndex].terrainData = segmented_to_virtual(CMD_GET(void *, 4));
-#else
         Collision *data;
         u32 size;
 
@@ -605,7 +602,6 @@ static void level_cmd_set_terrain_data(void) {
         size = get_area_terrain_size(data) * sizeof(Collision);
         gAreas[sCurrAreaIndex].terrainData = alloc_only_pool_alloc(sLevelPool, size);
         memcpy(gAreas[sCurrAreaIndex].terrainData, data, size);
-#endif
     }
     sCurrentCmd = CMD_NEXT;
 }
@@ -619,9 +615,6 @@ static void level_cmd_set_rooms(void) {
 
 static void level_cmd_set_macro_objects(void) {
     if (sCurrAreaIndex != -1) {
-#ifndef NO_SEGMENTED_MEMORY
-        gAreas[sCurrAreaIndex].macroObjects = segmented_to_virtual(CMD_GET(void *, 4));
-#else
         // The game modifies the macro object data (for example marking coins as taken),
         // so it must be reset when the level reloads.
         MacroObject *data = segmented_to_virtual(CMD_GET(void *, 4));
@@ -631,7 +624,6 @@ static void level_cmd_set_macro_objects(void) {
         }
         gAreas[sCurrAreaIndex].macroObjects = alloc_only_pool_alloc(sLevelPool, len * sizeof(MacroObject));
         memcpy(gAreas[sCurrAreaIndex].macroObjects, data, len * sizeof(MacroObject));
-#endif
     }
     sCurrentCmd = CMD_NEXT;
 }

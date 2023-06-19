@@ -22,15 +22,9 @@
 #define MAX_GD_DLS 1000
 #define OS_MESG_SI_COMPLETE 0x33333333
 
-#ifndef NO_SEGMENTED_MEMORY
-#define GD_VIRTUAL_TO_PHYSICAL(addr) ((uintptr_t)(addr) &0x0FFFFFFF)
-#define GD_LOWER_24(addr) ((uintptr_t)(addr) &0x00FFFFFF)
-#define GD_LOWER_29(addr) (((uintptr_t)(addr)) & 0x1FFFFFFF)
-#else
 #define GD_VIRTUAL_TO_PHYSICAL(addr) (addr)
 #define GD_LOWER_24(addr) ((uintptr_t)(addr))
 #define GD_LOWER_29(addr) (((uintptr_t)(addr)))
-#endif
 
 #define MTX_INTPART_PACK(w1, w2) (((w1) &0xFFFF0000) | (((w2) >> 16) & 0xFFFF))
 #define MTX_FRACPART_PACK(w1, w2) ((((w1) << 16) & 0xFFFF0000) | ((w2) &0xFFFF))
@@ -110,8 +104,6 @@ static struct ObjGadget *sTimerGadgets[GD_NUM_TIMERS]; // @ 801BAEA8
 static u32 D_801BAF28;                                 // RAM addr offset?
 static s16 sTriangleBuf[13][8];                          // [[s16; 8]; 13]? vert indices?
 UNUSED static u32 unref_801bb000[3];
-static u8 *sMemBlockPoolBase; // @ 801BB00C
-static u32 sAllocMemory;      // @ 801BB010; malloc-ed bytes
 UNUSED static u32 unref_801bb014;
 static s32 D_801BB018;
 static s32 D_801BB01C;
@@ -177,6 +169,9 @@ static OSIoMesg sGdDMAReqMesg;
 static struct ObjView *D_801BE994; // store if View flag 0x40 set
 #endif
 
+static void *(*sAllocFn)(u32 size);
+static void (*sFreeFn)(void *ptr);
+
 // data
 UNUSED static u32 unref_801a8670 = 0;
 static s32 D_801A8674 = 0;
@@ -188,8 +183,6 @@ static f32 sDynamicsTime = 0.0f;      // @ 801A8688
 static f32 sDLGenTime = 0.0f;         // @ 801A868C
 static f32 sRCPTime = 0.0f;           // @ 801A8690
 static f32 sTimeScaleFactor = 1.0f;   // @ D_801A8694
-static u32 sMemBlockPoolSize = 1;     // @ 801A8698
-static s32 sMemBlockPoolUsed = 0;     // @ 801A869C
 static s32 sTextureCount = 0;  // maybe?
 static struct GdTimer *D_801A86A4 = NULL; // timer for dlgen, dynamics, or rcp
 static struct GdTimer *D_801A86A8 = NULL; // timer for dlgen, dynamics, or rcp
@@ -506,11 +499,11 @@ static Gfx gd_dl_sparkle[] = {
     gsSPClearGeometryMode(G_TEXTURE_GEN | G_TEXTURE_GEN_LINEAR),
     gsDPSetRenderMode(G_RM_AA_ZB_TEX_EDGE, G_RM_NOOP2),
     gsSPTexture(0x8000, 0x8000, 0, G_TX_RENDERTILE, G_ON),
-    gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, 0, 0, G_TX_LOADTILE, 0, G_TX_WRAP | G_TX_NOMIRROR, G_TX_NOMASK, G_TX_NOLOD, 
+    gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, 0, 0, G_TX_LOADTILE, 0, G_TX_WRAP | G_TX_NOMIRROR, G_TX_NOMASK, G_TX_NOLOD,
                 G_TX_WRAP | G_TX_NOMIRROR, G_TX_NOMASK, G_TX_NOLOD),
     gsDPLoadSync(),
     gsDPLoadBlock(G_TX_LOADTILE, 0, 0, 32 * 32 - 1, CALC_DXT(32, G_IM_SIZ_16b_BYTES)),
-    gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 0, G_TX_RENDERTILE, 0, G_TX_WRAP | G_TX_NOMIRROR, G_TX_NOMASK, G_TX_NOLOD, 
+    gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 0, G_TX_RENDERTILE, 0, G_TX_WRAP | G_TX_NOMIRROR, G_TX_NOMASK, G_TX_NOLOD,
                 G_TX_WRAP | G_TX_NOMIRROR, G_TX_NOMASK, G_TX_NOLOD),
     gsDPSetTileSize(0, 0, 0, (32 - 1) << G_TEXTURE_IMAGE_FRAC, (32 - 1) << G_TEXTURE_IMAGE_FRAC),
     gsSPVertex(gd_vertex_sparkle, 4, 0),
@@ -659,7 +652,7 @@ static Gfx gd_dl_mario_face_shine[] = {
     gsDPSetTexturePersp(G_TP_PERSP),
     gsDPSetTextureFilter(G_TF_BILERP),
     gsDPSetCombineMode(G_CC_HILITERGBA, G_CC_HILITERGBA),
-    gsDPLoadTextureBlock(gd_texture_mario_face_shine, G_IM_FMT_IA, G_IM_SIZ_8b, 32, 32, 0, 
+    gsDPLoadTextureBlock(gd_texture_mario_face_shine, G_IM_FMT_IA, G_IM_SIZ_8b, 32, 32, 0,
                         G_TX_WRAP | G_TX_NOMIRROR, G_TX_WRAP | G_TX_NOMIRROR, 5, 5, G_TX_NOLOD, G_TX_NOLOD),
     gsDPPipeSync(),
     gsSPEndDisplayList(),
@@ -758,7 +751,7 @@ void reset_cur_dl_indices(void);
 // TODO: make a gddl_num_t?
 
 u32 get_alloc_mem_amt(void) {
-    return sAllocMemory;
+    return 0;
 }
 
 /**
@@ -973,45 +966,13 @@ void gd_exit(UNUSED s32 code) {
 
 /* 24A1D4 -> 24A220; orig name: func_8019BA04 */
 void gd_free(void *ptr) {
-    sAllocMemory -= gd_free_mem(ptr);
+    sFreeFn(ptr);
 }
 
-/* 24A220 -> 24A318 */
-void *gd_allocblock(u32 size) {
-    void *block; // 1c
-
-    size = ALIGN(size, 8);
-    if ((sMemBlockPoolUsed + size) > sMemBlockPoolSize) {
-        gd_printf("gd_allocblock(): Failed request: %dk (%d bytes)\n", size / 1024, size);
-        gd_printf("gd_allocblock(): Heap usage: %dk (%d bytes) \n", sMemBlockPoolUsed / 1024,
-                  sMemBlockPoolUsed);
-        print_all_memtrackers();
-        mem_stats();
-        fatal_printf("exit");
-    }
-
-    block = sMemBlockPoolBase + sMemBlockPoolUsed;
-    sMemBlockPoolUsed += size;
-    return block;
-}
 
 /* 24A318 -> 24A3E8 */
-void *gd_malloc(u32 size, u8 perm) {
-    void *ptr; // 1c
-    size = ALIGN(size, 8);
-    ptr = gd_request_mem(size, perm);
-
-    if (ptr == NULL) {
-        gd_printf("gd_malloc(): Failed request: %dk (%d bytes)\n", size / 1024, size);
-        gd_printf("gd_malloc(): Heap usage: %dk (%d bytes) \n", sAllocMemory / 1024, sAllocMemory);
-        print_all_memtrackers();
-        mem_stats();
-        return NULL;
-    }
-
-    sAllocMemory += size;
-
-    return ptr;
+void *gd_malloc(u32 size, UNUSED u8 perm) {
+    return sAllocFn(size);
 }
 
 /* 24A3E8 -> 24A420; orig name: func_8019BC18 */
@@ -1140,26 +1101,11 @@ void Unknown8019C288(s32 stickX, s32 stickY) {
     ctrl->stickYf = (f32)(stickY / 2);
 }
 
-/* 24AAA8 -> 24AAE0; orig name: func_8019C2D8 */
-void gd_add_to_heap(void *addr, u32 size) {
-    // TODO: is this `1` for permanence special?
-    gd_add_mem_to_heap(size, addr, 1);
-}
 
-/* 24AAE0 -> 24AB7C */
-void gdm_init(void *blockpool, u32 size) {
-    UNUSED u8 filler[4];
-
+void gdm_init(void *(*allocFn)(u32 size), void (*freeFn)(void *addr)) {
     imin("gdm_init");
-    // Align downwards?
-    size = (size - 8) & ~7;
-    // Align to next double word boundry?
-    blockpool = (void *) (((uintptr_t) blockpool + 8) & ~7);
-    sMemBlockPoolBase = blockpool;
-    sMemBlockPoolSize = size;
-    sMemBlockPoolUsed = 0;
-    sAllocMemory = 0;
-    init_mem_block_lists();
+    sAllocFn = allocFn;
+    sFreeFn = freeFn;
     gd_reset_sfx();
     imout();
 }
@@ -1278,7 +1224,7 @@ void gd_vblank(void) {
 }
 
 /**
- * Copies the player1 controller data from p1cont to sGdContPads[0]. 
+ * Copies the player1 controller data from p1cont to sGdContPads[0].
  */
 void gd_copy_p1_contpad(OSContPad *p1cont) {
     u32 i;                                    // 24
@@ -1467,9 +1413,7 @@ struct GdDisplayList *create_child_gdl(s32 id, struct GdDisplayList *srcDl) {
 //! @bug No return statement, despite return value being used.
 //!      Goddard lucked out that `v0` return from alloc_displaylist()
 //!      is not overwriten, as that pointer is what should be returned
-#ifdef AVOID_UB
     return newDl;
-#endif
 }
 
 /* 24B7F8 -> 24BA48; orig name: func_8019D028 */
@@ -2379,7 +2323,6 @@ void start_view_dl(struct ObjView *view) {
         uly = lry - 1.0f;
     }
 
-    gDPSetScissor(next_gfx(), G_SC_NON_INTERLACE, ulx, uly, lrx, lry);
     gSPClearGeometryMode(next_gfx(), 0xFFFFFFFF);
     gSPSetGeometryMode(next_gfx(), G_LIGHTING | G_CULL_BACK | G_SHADING_SMOOTH | G_SHADE);
     if (view->flags & VIEW_ALLOC_ZBUF) {
@@ -2397,7 +2340,7 @@ void parse_p1_controller(void) {
     OSContPad *currInputs;
     OSContPad *prevInputs;
 
-    // Copy current inputs to previous 
+    // Copy current inputs to previous
     u8 *src = (u8 *) gdctrl;
     u8 *dest = (u8 *) gdctrl->prevFrame;
     for (i = 0; i < sizeof(struct GdControl); i++) {
@@ -2797,9 +2740,7 @@ s32 setup_view_buffers(const char *name, struct ObjView *view, UNUSED s32 ulx, U
 //!      doesn't use four of its parameters, this function may have
 //!      had a fair amount of its code commented out. In game, the
 //!      returned value is always 0, so the fix returns that value
-#ifdef AVOID_UB
     return 0;
-#endif
 }
 
 /* 252AF8 -> 252BAC; orig name: _InitControllers */
@@ -2832,9 +2773,7 @@ void stub_renderer_6(UNUSED struct GdObj *obj) {
  */
 long defpup(UNUSED const char *menufmt, ...) {
     //! @bug no return; function was stubbed
-#ifdef AVOID_UB
    return 0;
-#endif
 }
 
 /**
@@ -3201,9 +3140,6 @@ void gd_init(void) {
     s8 *data; // 2c
 
     imin("gd_init");
-    i = (u32)(sMemBlockPoolSize - DOUBLE_SIZE_ON_64_BIT(0x3E800));
-    data = gd_allocblock(i);
-    gd_add_mem_to_heap(i, data, 0x10);
     sAlpha = (u16) 0xff;
     D_801A867C = 0;
     D_801A8680 = 0;
@@ -3317,7 +3253,7 @@ void stub_renderer_14(UNUSED s8 *arg0) {
  * functions from IRIS GL.
  * @param buf  pointer to an array of 16-bit values
  * @param len  maximum number of values to store
- */ 
+ */
 void init_pick_buf(s16 *buf, s32 len) {
     buf[0] = 0;
     buf[1] = 0;
@@ -3722,105 +3658,9 @@ void stub_renderer_18(UNUSED u32 a0) {
 void stub_renderer_19(UNUSED u32 a0) {
 }
 
-#ifndef NO_SEGMENTED_MEMORY
-/**
- * Copies `size` bytes of data from ROM address `romAddr` to RAM address `vAddr`.
- */
-static void gd_block_dma(u32 romAddr, void *vAddr, s32 size) {
-    s32 blockSize;
-
-    do {
-        if ((blockSize = size) > 0x1000) {
-            blockSize = 0x1000;
-        }
-
-        osPiStartDma(&sGdDMAReqMesg, OS_MESG_PRI_NORMAL, OS_READ, romAddr, vAddr, blockSize, &sGdDMAQueue);
-        osRecvMesg(&sGdDMAQueue, &sGdDMACompleteMsg, OS_MESG_BLOCK);
-        romAddr += blockSize;
-        vAddr = (void *) ((uintptr_t) vAddr + blockSize);
-        size -= 0x1000;
-    } while (size > 0);
-}
-
-/**
- * Loads the specified DynList from ROM and processes it.
- */
-struct GdObj *load_dynlist(struct DynList *dynlist) {
-    u32 segSize;
-    u8 *allocSegSpace;
-    void *allocPtr;
-    uintptr_t dynlistSegStart;
-    uintptr_t dynlistSegEnd;
-    s32 i;
-    s32 tlbEntries;
-    struct GdObj *loadedList;
-
-    i = -1;
-
-    // Make sure the dynlist exists
-    while (sDynLists[++i].list != NULL) {
-        if (sDynLists[i].list == dynlist) {
-            break;
-        }
-    }
-    if (sDynLists[i].list == NULL) {
-        fatal_printf("load_dynlist() ptr not found in any banks");
-    }
-
-    switch (sDynLists[i].flag) {
-        case STD_LIST_BANK:
-            dynlistSegStart = (uintptr_t) _gd_dynlistsSegmentRomStart;
-            dynlistSegEnd = (uintptr_t) _gd_dynlistsSegmentRomEnd;
-            break;
-        default:
-            fatal_printf("load_dynlist() unkown bank");
-    }
-
-#define PAGE_SIZE 65536  // size of a 64K TLB page 
-
-    segSize = dynlistSegEnd - dynlistSegStart;
-    allocSegSpace = gd_malloc_temp(segSize + PAGE_SIZE);
-
-    if ((allocPtr = (void *) allocSegSpace) == NULL) {
-        fatal_printf("Not enough DRAM for DATA segment \n");
-    }
-
-    allocSegSpace = (u8 *) (((uintptr_t) allocSegSpace + PAGE_SIZE) & 0xFFFF0000);
-
-    // Copy the dynlist data from ROM
-    gd_block_dma(dynlistSegStart, (void *) allocSegSpace, segSize);
-
-    osUnmapTLBAll();
-
-    tlbEntries = (segSize / PAGE_SIZE) / 2 + 1;
-    if (tlbEntries >= 31) {
-        fatal_printf("load_dynlist() too many TLBs");
-    }
-
-    // Map virtual address 0x04000000 to `allocSegSpace`
-    for (i = 0; i < tlbEntries; i++) {
-        osMapTLB(i, OS_PM_64K,
-            (void *) (uintptr_t) (0x04000000 + (i * 2 * PAGE_SIZE)),  // virtual address to map
-            GD_LOWER_24(((uintptr_t) allocSegSpace) + (i * 2 * PAGE_SIZE) + 0),  // even page address
-            GD_LOWER_24(((uintptr_t) allocSegSpace) + (i * 2 * PAGE_SIZE) + PAGE_SIZE),  // odd page address
-            -1);
-    }
-
-#undef PAGE_SIZE
-
-    // process the dynlist
-    loadedList = proc_dynlist(dynlist);
-
-    gd_free(allocPtr);
-    osUnmapTLBAll();
-
-    return loadedList;
-}
-#else
 struct GdObj *load_dynlist(struct DynList *dynlist) {
     return proc_dynlist(dynlist);
 }
-#endif
 
 /**
  * Unused (not called)

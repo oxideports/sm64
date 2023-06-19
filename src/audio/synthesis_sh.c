@@ -9,6 +9,8 @@
 #include "internal.h"
 #include "external.h"
 
+#include "../pc/mixer.h"
+
 
 #define DMEM_ADDR_TEMP 0x450
 #define DMEM_ADDR_RESAMPLED 0x470

@@ -168,11 +168,16 @@ struct AdpcmBook {
 
 struct AudioBankSample {
 #ifdef VERSION_SH
+#if !IS_BIG_ENDIAN
+    u32 size : 24;
+#endif
     /* 0x00 */ u32 codec : 4;
     /* 0x00 */ u32 medium : 2;
     /* 0x00 */ u32 bit1 : 1;
     /* 0x00 */ u32 isPatched : 1;
+#if IS_BIG_ENDIAN
     /* 0x01 */ u32 size : 24;
+#endif
 #else
     u8 unused;
     u8 loaded;
@@ -615,9 +620,6 @@ struct Note {
     // when needed... This breaks alignment on non-N64 platforms, which we hack
     // around by skipping the padding in that case.
     // TODO: use macros or something instead.
-#ifdef TARGET_N64
-    u8 pad0[12];
-#endif
 
     /*0x04, 0x30, 0x30*/ u8 priority;
     /*      0x31, 0x31*/ u8 waveId;

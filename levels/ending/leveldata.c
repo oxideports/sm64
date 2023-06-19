@@ -1,10 +1,9 @@
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/gbi.h>
 
 #include "macros.h"
 #include "types.h"
 
-#include "make_const_nonconst.h"
 
 #ifdef VERSION_EU
 #include "levels/ending/cake_eu.inc.c"

@@ -2,7 +2,11 @@
  * Create an ADPCM codebook either by extracting it from an AIFF section, or
  * by executing tabledesign.
  */
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <unistd.h>
+#endif
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
@@ -14,10 +18,20 @@ typedef int s32;
 typedef unsigned char u8;
 typedef unsigned int u32;
 
+#ifdef _WIN32
+#define BSWAP16(x) x = _byteswap_ushort(x)
+#define BSWAP32(x) x = _byteswap_ulong(x)
+#else
 #define BSWAP16(x) x = __builtin_bswap16(x)
 #define BSWAP32(x) x = __builtin_bswap32(x)
+#endif
 
+#ifdef _WIN32
+#include <stdnoreturn.h>
+#define NORETURN noreturn
+#else
 #define NORETURN __attribute__((noreturn))
+#endif
 #define UNUSED __attribute__((unused))
 
 typedef struct
@@ -167,8 +181,13 @@ int main(int argc, char **argv)
     }
     fclose(ifile);
 
-    if (coefTable == NULL) {
-        execl("./tools/tabledesign", "tabledesign", "-s", "1", infilename, NULL);
+    char *tools_dir = getenv("TOOLS_PATH");
+    char tabledesign_tool[100];
+    strcpy(tabledesign_tool, tools_dir);
+    strcat(tabledesign_tool, "/");
+    strcat(tabledesign_tool, "tabledesign");
+    if (coefTable == NULL) {        
+        execl(tabledesign_tool, "tabledesign", "-s", "1", infilename, NULL);
     } else {
         printf("%d\n%d\n", order, npredictors);
         for (s32 i = 0; i < npredictors; i++) {

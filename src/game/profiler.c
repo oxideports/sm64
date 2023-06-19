@@ -1,4 +1,4 @@
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/os_time.h>
 #include <PR/gbi.h>
 

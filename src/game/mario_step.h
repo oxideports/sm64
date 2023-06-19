@@ -1,7 +1,7 @@
 #ifndef MARIO_STEP_H
 #define MARIO_STEP_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "types.h"
 

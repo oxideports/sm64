@@ -1,3 +1,4 @@
+#include <string.h>
 #include <ultra64.h>
 
 #include "sm64.h"
@@ -86,7 +87,7 @@ s32 envfx_init_snow(s32 mode) {
         return FALSE;
     }
 
-    bzero(gEnvFxBuffer, gSnowParticleMaxCount * sizeof(struct EnvFxParticle));
+    memset(gEnvFxBuffer, 0, gSnowParticleMaxCount * sizeof(struct EnvFxParticle));
 
     gEnvFxMode = mode;
     return TRUE;

@@ -4,9 +4,7 @@
 #include "level_commands.h"
 #include "game/area.h"
 
-#include "make_const_nonconst.h"
 
-#include "segment_symbols.h"
 
 #include "actors/common0.h"
 #include "actors/common1.h"

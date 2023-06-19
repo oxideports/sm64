@@ -1,4 +1,4 @@
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "engine/math_util.h"
 #include "engine/surface_collision.h"

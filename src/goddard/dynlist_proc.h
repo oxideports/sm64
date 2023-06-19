@@ -1,7 +1,7 @@
 #ifndef GD_DYNLIST_PROCESSOR_H
 #define GD_DYNLIST_PROCESSOR_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "gd_types.h"
 

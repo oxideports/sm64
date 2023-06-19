@@ -9,7 +9,6 @@
 #include "game/screen_transition.h"
 #include "game/paintings.h"
 
-#include "make_const_nonconst.h"
 
 #include "levels/ending/header.h"
 
@@ -37,4 +36,3 @@ const GeoLayout ending_geo_000050[] = {
    GEO_CLOSE_NODE(),
    GEO_END(),
 };
-

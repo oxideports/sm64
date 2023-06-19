@@ -3,7 +3,6 @@
 #include "behavior_data.h"
 #include "model_ids.h"
 #include "seq_ids.h"
-#include "segment_symbols.h"
 #include "level_commands.h"
 
 #include "game/area.h"
@@ -13,7 +12,6 @@
 
 #include "actors/common1.h"
 
-#include "make_const_nonconst.h"
 #include "levels/ending/header.h"
 
 const LevelScript level_ending_entry[] = {

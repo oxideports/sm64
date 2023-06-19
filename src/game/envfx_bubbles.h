@@ -1,7 +1,7 @@
 #ifndef ENVFX_BUBBLES_H
 #define ENVFX_BUBBLES_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/gbi.h>
 
 #define ENVFX_STATE_UNUSED          0

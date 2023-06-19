@@ -1,7 +1,7 @@
 #ifndef AUDIO_EFFECTS_H
 #define AUDIO_EFFECTS_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "internal.h"
 #include "platform_info.h"

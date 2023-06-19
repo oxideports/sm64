@@ -17,7 +17,6 @@
 #include "sound_init.h"
 #include "print.h"
 #include "segment2.h"
-#include "segment_symbols.h"
 #include "rumble_init.h"
 
 // First 3 controller slots
@@ -25,8 +24,9 @@ struct Controller gControllers[3];
 
 // Gfx handlers
 struct SPTask *gGfxSPTask;
-Gfx *gDisplayListHead;
-u8 *gGfxPoolEnd;
+struct AllocOnlyPool *gGfxAllocOnlyPool;
+Gfx *gDisplayListHeadInChunk;
+Gfx *gDisplayListEndInChunk;
 struct GfxPool *gGfxPool;
 
 // OS Controllers
@@ -188,10 +188,8 @@ void clear_viewport(Vp *viewport, s32 color) {
     s16 vpLrx = (viewport->vp.vtrans[0] + viewport->vp.vscale[0]) / 4 - 2;
     s16 vpLry = (viewport->vp.vtrans[1] + viewport->vp.vscale[1]) / 4 - 2;
 
-#ifdef WIDESCREEN
     vpUlx = GFX_DIMENSIONS_RECT_FROM_LEFT_EDGE(vpUlx);
     vpLrx = GFX_DIMENSIONS_RECT_FROM_RIGHT_EDGE(SCREEN_WIDTH - vpLrx);
-#endif
 
     gDPPipeSync(gDisplayListHead++);
 
@@ -250,11 +248,6 @@ void create_gfx_task_structure(void) {
     gGfxSPTask->msgqueue = &gGfxVblankQueue;
     gGfxSPTask->msg = (OSMesg) 2;
     gGfxSPTask->task.t.type = M_GFXTASK;
-    gGfxSPTask->task.t.ucode_boot = rspF3DBootStart;
-    gGfxSPTask->task.t.ucode_boot_size = ((u8 *) rspF3DBootEnd - (u8 *) rspF3DBootStart);
-    gGfxSPTask->task.t.flags = 0;
-    gGfxSPTask->task.t.ucode = rspF3DStart;
-    gGfxSPTask->task.t.ucode_data = rspF3DDataStart;
     gGfxSPTask->task.t.ucode_size = SP_UCODE_SIZE; // (this size is ignored)
     gGfxSPTask->task.t.ucode_data_size = SP_UCODE_DATA_SIZE;
     gGfxSPTask->task.t.dram_stack = (u64 *) gGfxSPTaskStack;
@@ -324,22 +317,14 @@ void draw_reset_bars(void) {
     osRecvMesg(&gGameVblankQueue, &gMainReceivedMesg, OS_MESG_BLOCK);
 }
 
-/**
- * Initial settings for the first rendered frame.
- */
-void render_init(void) {
-    gGfxPool = &gGfxPools[0];
-    set_segment_base_addr(1, gGfxPool->buffer);
-    gGfxSPTask = &gGfxPool->spTask;
-    gDisplayListHead = gGfxPool->buffer;
-    gGfxPoolEnd = (u8 *)(gGfxPool->buffer + GFX_POOL_SIZE);
-    init_rcp();
-    clear_framebuffer(0);
-    end_master_display_list();
-    exec_display_list(&gGfxPool->spTask);
 
-    sRenderingFramebuffer++;
-    gGlobalTimer++;
+Gfx **alloc_next_dl(void) {
+    u32 size = 1000;
+    Gfx *new_chunk = alloc_only_pool_alloc(gGfxAllocOnlyPool, size * sizeof(Gfx));
+    gSPBranchList(gDisplayListHeadInChunk++, new_chunk);
+    gDisplayListHeadInChunk = new_chunk;
+    gDisplayListEndInChunk = new_chunk + size;
+    return &gDisplayListHeadInChunk;
 }
 
 /**
@@ -349,8 +334,9 @@ void select_gfx_pool(void) {
     gGfxPool = &gGfxPools[gGlobalTimer % ARRAY_COUNT(gGfxPools)];
     set_segment_base_addr(1, gGfxPool->buffer);
     gGfxSPTask = &gGfxPool->spTask;
-    gDisplayListHead = gGfxPool->buffer;
-    gGfxPoolEnd = (u8 *) (gGfxPool->buffer + GFX_POOL_SIZE);
+    gDisplayListHeadInChunk = gGfxPool->buffer;
+    gDisplayListEndInChunk = gDisplayListHeadInChunk + 1;
+    alloc_only_pool_clear(gGfxAllocOnlyPool);
 }
 
 /**
@@ -637,11 +623,12 @@ void setup_game_memory(void) {
     load_segment_decompress(2, _segment2_mio0SegmentRomStart, _segment2_mio0SegmentRomEnd);
 }
 
+static struct LevelCommand *levelCommandAddr;
+
 /**
  * Main game loop thread. Runs forever as long as the game continues.
  */
 void thread5_game_loop(UNUSED void *arg) {
-    struct LevelCommand *addr;
 
     setup_game_memory();
 #if ENABLE_RUMBLE
@@ -655,18 +642,20 @@ void thread5_game_loop(UNUSED void *arg) {
 
     set_vblank_handler(2, &gGameVblankHandler, &gGameVblankQueue, (OSMesg) 1);
 
-    // Point address to the entry point into the level script data.
-    addr = segmented_to_virtual(level_script_entry);
+    // Point levelCommandAddr to the entry point into the level script data.
+    levelCommandAddr = segmented_to_virtual(level_script_entry);
 
     play_music(SEQ_PLAYER_SFX, SEQUENCE_ARGS(0, SEQ_SOUND_PLAYER), 0);
     set_sound_mode(save_file_get_sound_mode());
-    render_init();
 
-    while (TRUE) {
+    gGlobalTimer++;
+}
+
+void game_loop_one_iteration(void) {
         // If the reset timer is active, run the process to reset the game.
         if (gResetTimer != 0) {
             draw_reset_bars();
-            continue;
+            return;
         }
         profiler_log_thread5_time(THREAD5_START);
 
@@ -676,21 +665,17 @@ void thread5_game_loop(UNUSED void *arg) {
 #if ENABLE_RUMBLE
             block_until_rumble_pak_free();
 #endif
-            osContStartReadData(&gSIEventMesgQueue);
         }
 
+        osContStartReadData(&gSIEventMesgQueue);
         audio_game_loop_tick();
         select_gfx_pool();
         read_controller_inputs();
-        addr = level_script_execute(addr);
+        levelCommandAddr = level_script_execute(levelCommandAddr);
 
         display_and_vsync();
 
         // when debug info is enabled, print the "BUF %d" information.
         if (gShowDebugText) {
-            // subtract the end of the gfx pool with the display list to obtain the
-            // amount of free space remaining.
-            print_text_fmt_int(180, 20, "BUF %d", gGfxPoolEnd - (u8 *) gDisplayListHead);
         }
-    }
 }

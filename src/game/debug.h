@@ -1,7 +1,7 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 enum DebugPage {
     DEBUG_PAGE_OBJECTINFO,       // 0: objectinfo

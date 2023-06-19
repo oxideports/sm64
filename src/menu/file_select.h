@@ -1,7 +1,7 @@
 #ifndef FILE_SELECT_H
 #define FILE_SELECT_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/gbi.h>
 
 #include "types.h"

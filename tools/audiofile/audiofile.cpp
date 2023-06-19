@@ -2217,6 +2217,10 @@ private:
 
 #include <sys/types.h>
 
+#ifdef _MSC_VER
+#define ssize_t long
+#endif
+
 typedef struct _AFvirtualfile AFvirtualfile;
 
 class File : public Shared<File>
@@ -8199,7 +8203,11 @@ Buffer::~Buffer()
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifdef _WIN32
+#include <io.h>
+#else
 #include <unistd.h>
+#endif
 #include <stdio.h>
 
 class FilePOSIX : public File
@@ -14326,8 +14334,12 @@ int _af_ulaw2linear (unsigned char u_val)
 #include <assert.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <io.h>
+#else
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #endif
 
 #include <audiofile.h>

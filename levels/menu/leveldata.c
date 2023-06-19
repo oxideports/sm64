@@ -1,4 +1,4 @@
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/gbi.h>
 
 #include "macros.h"
@@ -8,7 +8,6 @@
 #ifdef VERSION_EU
 #include "text_strings.h"
 #endif
-#include "make_const_nonconst.h"
 
 // 0x07000000 - 0x07000018
 static const Lights1 lights_menu_save_button = gdSPDefLights1(

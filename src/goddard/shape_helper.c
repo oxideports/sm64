@@ -1,4 +1,4 @@
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #if defined(VERSION_JP) || defined(VERSION_US)
 #include "prevent_bss_reordering.h"

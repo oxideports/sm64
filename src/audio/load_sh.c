@@ -1,6 +1,5 @@
 #ifdef VERSION_SH
 #include <ultra64.h>
-#include <PR/os.h>
 
 #include "data.h"
 #include "external.h"
@@ -364,9 +363,7 @@ s32 func_sh_802f2f38(struct AudioBankSample *sample, s32 bankId) {
         sample->medium = 0;
         sample->sampleAddr = sp24;
     }
-#ifdef AVOID_UB
     return 0;
-#endif
 }
 
 s32 func_sh_802f3024(s32 bankId, s32 instId, s32 arg2) {
@@ -394,9 +391,7 @@ s32 func_sh_802f3024(s32 bankId, s32 instId, s32 arg2) {
         func_sh_802f2f38(drum->sound.sample, bankId);
         return 0;
     }
-#ifdef AVOID_UB
     return 0;
-#endif
 }
 
 void func_sh_802f30f4(s32 arg0, s32 arg1, s32 arg2, OSMesgQueue *arg3) {
@@ -1017,27 +1012,11 @@ void audio_init() {
         ((u64 *) gAudioHeap)[i] = 0;
     }
 
-#ifdef TARGET_N64
-    // It seems boot.s doesn't clear the .bss area for audio, so do it here.
-    lim = ((uintptr_t) &gAudioGlobalsEndMarker - (uintptr_t) &gAudioGlobalsStartMarker) / 8;
-    ptr64 = &gAudioGlobalsStartMarker;
-    for (k = lim; k >= 0; k--) {
-        *ptr64++ = 0;
-    }
-#endif
 
     D_EU_802298D0 = 16.713f;
     gRefreshRate = 60;
     port_eu_init();
 
-#ifdef TARGET_N64
-    eu_stubbed_printf_3(
-        "Clear Workarea %x -%x size %x \n",
-        (uintptr_t) &gAudioGlobalsStartMarker,
-        (uintptr_t) &gAudioGlobalsEndMarker,
-        (uintptr_t) &gAudioGlobalsEndMarker - (uintptr_t) &gAudioGlobalsStartMarker
-    );
-#endif
 
     eu_stubbed_printf_1("AudioHeap is %x\n", gAudioHeapSize);
 

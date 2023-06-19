@@ -1083,12 +1083,8 @@ s32 audio_shut_down_and_reset_step(void) {
 /**
  * Waits until a specified number of audio frames have been created
  */
-void wait_for_audio_frames(s32 frames) {
+void wait_for_audio_frames(UNUSED s32 frames) {
     gAudioFrameCount = 0;
-    // Sound thread will update gAudioFrameCount
-    while (gAudioFrameCount < frames) {
-        // spin
-    }
 }
 #endif
 
@@ -1466,11 +1462,9 @@ void *unk_pool1_alloc(s32 poolIndex, s32 arg1, u32 size) {
     gUnkPool1.entries[pos].id = arg1;
     gUnkPool1.entries[pos].size = size;
 
-#ifdef AVOID_UB
     //! @bug UB: missing return. "ret" is in v0 at this point, but doing an
     //  explicit return uses an additional register.
     return ret;
-#endif
 }
 
 u8 *func_sh_802f1d40(u32 size, s32 bank, u8 *arg2, s8 medium) {

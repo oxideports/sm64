@@ -7,14 +7,14 @@
 #define _LANGUAGE_C
 #endif
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/os_exception.h>
 #include <PR/os_misc.h>
 #include <PR/os_rdp.h>
-#include <PR/os_thread.h>
+#include <libultra/os_thread.h>
 #include <PR/os_time.h>
 #include <PR/os_message.h>
-#include <PR/os_cont.h>
+#include <libultra/os_cont.h>
 #include <PR/os_tlb.h>
 #include <PR/sptask.h>
 #include <PR/ucode.h>

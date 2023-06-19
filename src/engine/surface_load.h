@@ -1,7 +1,7 @@
 #ifndef SURFACE_LOAD_H
 #define SURFACE_LOAD_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "surface_collision.h"
 #include "types.h"
@@ -32,9 +32,7 @@ extern struct Surface *sSurfacePool;
 extern s16 sSurfacePoolSize;
 
 void alloc_surface_pools(void);
-#ifdef NO_SEGMENTED_MEMORY
 u32 get_area_terrain_size(s16 *data);
-#endif
 void load_area_terrain(s16 index, s16 *data, s8 *surfaceRooms, s16 *macroObjects);
 void clear_dynamic_surfaces(void);
 void load_object_collision_model(void);

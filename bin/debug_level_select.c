@@ -1,7 +1,6 @@
 #include <ultra64.h>
 #include "sm64.h"
 
-#include "make_const_nonconst.h"
 
 // 0x07000000 - 0x07000018
 static const Lights1 debug_level_select_lights_07000000 = gdSPDefLights1(
@@ -2182,4 +2181,3 @@ const Gfx debug_level_select_dl_070063B0[] = {
     gsSP1Triangle( 6,  7,  8, 0x0),
     gsSPEndDisplayList(),
 };
-

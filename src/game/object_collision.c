@@ -1,4 +1,4 @@
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "sm64.h"
 #include "debug.h"
@@ -57,9 +57,7 @@ s32 detect_object_hitbox_overlap(struct Object *a, struct Object *b) {
     }
 
     //! no return value
-#ifdef AVOID_UB
     return 0;
-#endif
 }
 
 s32 detect_object_hurtbox_overlap(struct Object *a, struct Object *b) {
@@ -92,9 +90,7 @@ s32 detect_object_hurtbox_overlap(struct Object *a, struct Object *b) {
     }
 
     //! no return value
-#ifdef AVOID_UB
     return 0;
-#endif
 }
 
 void clear_object_collision(struct Object *a) {

@@ -1,7 +1,7 @@
 #ifndef GD_DEBUGGING_UTILS_H
 #define GD_DEBUGGING_UTILS_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "gd_types.h"
 #include "macros.h"

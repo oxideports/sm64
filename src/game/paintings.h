@@ -1,7 +1,7 @@
 #ifndef PAINTINGS_H
 #define PAINTINGS_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 #include <PR/gbi.h>
 
 #include "macros.h"

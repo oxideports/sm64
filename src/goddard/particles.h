@@ -1,7 +1,7 @@
 #ifndef GD_PARTICLES_H
 #define GD_PARTICLES_H
 
-#include <PR/ultratypes.h>
+#include <libultra/ultratypes.h>
 
 #include "gd_types.h"
 
