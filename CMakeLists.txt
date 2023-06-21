@@ -45,8 +45,41 @@ else()
 set(CPP "${CMAKE_C_COMPILER}" "-E" "-P" "-Wno-trigraphs" "-x" "c")
 endif()
 
-# Set game compilation version
-set(VERSION us)
+# Set and validate the game version
+file(GLOB_RECURSE BASEROM_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "baserom.*.z64")
+foreach(BASEROM_FILE ${BASEROM_FILES})
+    string(REPLACE ".z64" "" BASEROM_FILE ${BASEROM_FILE})
+    string(REPLACE "baserom." "" BASEROM_FILE ${BASEROM_FILE})
+    list(APPEND GAME_VERSIONS ${BASEROM_FILE})
+endforeach()
+
+list(LENGTH GAME_VERSIONS GAME_VERSIONS_LENGTH)
+if (${GAME_VERSIONS_LENGTH} EQUAL 0)
+  message(FATAL_ERROR "Could not find any baserom files, do you have a baserom.<version>.z64 file?")
+endif()
+
+if (NOT DEFINED GAME_VERSION)
+    # select US if available, otherwise take the first from the list
+    list(FIND GAME_VERSIONS "us" INDEX)
+    if (${INDEX} EQUAL -1)
+        list(GET GAME_VERSIONS 0 GAME_VERSION)
+    else()
+        list(GET GAME_VERSIONS ${INDEX} GAME_VERSION)
+    endif()
+
+    string(TOUPPER "${GAME_VERSION}" UPPER_GAME_VERSION)
+    message(STATUS "Detected ROM version ${GAME_VERSION}")
+else()
+    # verify that the baserom file exists
+    list(FIND BASEROM_FILE ${GAME_VERSION} INDEX)
+
+    if (${INDEX} EQUAL -1)
+        message(FATAL_ERROR "Could not find baserom.${GAME_VERSION}.z64, do you select the correct version?")
+    endif()
+
+    string(TOUPPER "${GAME_VERSION}" UPPER_GAME_VERSION)
+    message(STATUS "Using ROM version ${GAME_VERSION}")
+endif()
 
 # Add the tools subdirectory to the build
 add_subdirectory(tools)
@@ -57,7 +90,7 @@ find_package(Python3 COMPONENTS Interpreter REQUIRED)
 # Add a custom target to extract assets
 add_custom_target(
     ExtractAssets
-    COMMAND ${CMAKE_COMMAND} -E env "TOOLS_PATH=$<TARGET_FILE_DIR:mio0>" ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_assets.py ${VERSION}
+    COMMAND ${CMAKE_COMMAND} -E env "TOOLS_PATH=$<TARGET_FILE_DIR:mio0>" ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_assets.py ${GAME_VERSION}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMENT "Running asset extraction..."
     DEPENDS Tools
@@ -73,9 +106,29 @@ add_custom_target(
     DEPENDS Tools
 )
 
+#==============================================================================#
+# Game Version Defines                                                         #
+#==============================================================================#
+
+# Create list of defines for the game version
+set(GAME_DEFINES VERSION_${UPPER_GAME_VERSION}=1)
+if (${GAME_VERSION} STREQUAL "jp" OR ${GAME_VERSION} STREQUAL "us")
+    list(APPEND GAME_DEFINES VERSION_JP_US=1)
+endif()
+
+# define a C_GAME_DEFINES which is every game define prefixed with -D
+foreach(GAME_DEFINE ${GAME_DEFINES})
+    list(APPEND C_GAME_DEFINES -D${GAME_DEFINE})
+endforeach()
+
+
+#==============================================================================#
+# Compile Definitions                                                          #
+#==============================================================================#
+
 # Add compile definitions for the target
 add_compile_definitions(
-    VERSION_US=1
+    ${GAME_DEFINES}
     F3DEX_GBI_2E=1
     _LANGUAGE_C
     _USE_MATH_DEFINES
@@ -137,7 +190,12 @@ file(GLOB_RECURSE ALL_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
 
 # Exclude specific files from the ALL_FILES list
 list(FILTER ALL_FILES EXCLUDE REGEX ".*.inc.c")
-list(FILTER ALL_FILES EXCLUDE REGEX "bin/eu/.*.c")
+
+#if game version is not eu, exclude eu files
+if (NOT ${GAME_VERSION} STREQUAL "eu")
+    list(FILTER ALL_FILES EXCLUDE REGEX "bin/eu/.*.c")
+endif()
+
 list(FILTER ALL_FILES EXCLUDE REGEX "src/game/main.c")
 list(FILTER ALL_FILES EXCLUDE REGEX "src/pc/dlmalloc.c")
 
@@ -184,7 +242,7 @@ list(APPEND ALL_FILES ${CMAKE_CURRENT_BINARY_DIR}/assets/mario_anim_data.c)
 
 add_custom_command(
     OUTPUT  assets/demo_data.c
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/demo_data_converter.py ${CMAKE_CURRENT_SOURCE_DIR}/assets/demo_data.json -D VERSION_US > ${CMAKE_CURRENT_BINARY_DIR}/assets/demo_data.c
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/demo_data_converter.py ${CMAKE_CURRENT_SOURCE_DIR}/assets/demo_data.json ${C_GAME_DEFINES} > ${CMAKE_CURRENT_BINARY_DIR}/assets/demo_data.c
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 list(APPEND ALL_FILES ${CMAKE_CURRENT_BINARY_DIR}/assets/demo_data.c)
@@ -205,14 +263,14 @@ add_custom_command(
 )
 list(APPEND ALL_FILES ${CMAKE_CURRENT_BINARY_DIR}/include/text_menu_strings.h)
 
-add_executable(sm64-${VERSION} ${ALL_FILES} ${GENERATED_SOURCES})
+add_executable(sm64-${GAME_VERSION} ${ALL_FILES} ${GENERATED_SOURCES})
 
 ################################################################################
 # MSVC runtime library
 ################################################################################
 if (MSVC)
   if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-	  get_property(MSVC_RUNTIME_LIBRARY_DEFAULT TARGET sm64-${VERSION} PROPERTY MSVC_RUNTIME_LIBRARY)
+	  get_property(MSVC_RUNTIME_LIBRARY_DEFAULT TARGET sm64-${GAME_VERSION} PROPERTY MSVC_RUNTIME_LIBRARY)
 	  if("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "x64")
 		  string(CONCAT "MSVC_RUNTIME_LIBRARY_STR"
 			  $<$<CONFIG:Debug>:
@@ -234,7 +292,7 @@ if (MSVC)
 			  $<$<NOT:$<OR:$<CONFIG:Debug>,$<CONFIG:Release>>>:${MSVC_RUNTIME_LIBRARY_DEFAULT}>
 		  )
 	  endif()
-	  set_target_properties(sm64-${VERSION} PROPERTIES MSVC_RUNTIME_LIBRARY ${MSVC_RUNTIME_LIBRARY_STR})
+	  set_target_properties(sm64-${GAME_VERSION} PROPERTIES MSVC_RUNTIME_LIBRARY ${MSVC_RUNTIME_LIBRARY_STR})
   endif()
 endif()
 
@@ -248,12 +306,12 @@ file(GLOB_RECURSE HELIX_CPP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/helix/cpp/*.c")
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/helix/cpp)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/helix/include)
 add_library(helixcpp STATIC ${HELIX_CPP_SOURCES})
-target_link_libraries(sm64-${VERSION} PRIVATE helixcpp)
+target_link_libraries(sm64-${GAME_VERSION} PRIVATE helixcpp)
 
 corrosion_import_crate(MANIFEST_PATH ${CMAKE_CURRENT_SOURCE_DIR}/helix/Cargo.toml FEATURES f3dex2e gbifloats)
 
-target_link_libraries(sm64-${VERSION} PRIVATE helix)
-target_include_directories(sm64-${VERSION} PRIVATE ./helix/include)
+target_link_libraries(sm64-${GAME_VERSION} PRIVATE helix)
+target_include_directories(sm64-${GAME_VERSION} PRIVATE ./helix/include)
 
 if(APPLE)
     target_link_libraries(helix INTERFACE "-framework OpenGL")
@@ -306,46 +364,58 @@ file(GLOB_RECURSE ORGFILES3 RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "textures/*.png
 list (APPEND ORGFILES ${ORGFILES2})
 list (APPEND ORGFILES ${ORGFILES3})
 list(REMOVE_ITEM ORGFILES "levels/ending/cake.png")
+list(REMOVE_ITEM ORGFILES "levels/ending/cake_eu.png")
 list(FILTER ORGFILES EXCLUDE REGEX "textures/ipl3_raw/.*.png")
 list(FILTER ORGFILES EXCLUDE REGEX "textures/skyboxes/.*.png")
 foreach(orgfile ${ORGFILES})
   get_filename_component(OUTPUT_FILE_WLE ${orgfile} NAME_WLE)
   get_filename_component(OUTPUT_DIR ${orgfile} DIRECTORY)
   set(OUTPUT_FILE ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_DIR}/${OUTPUT_FILE_WLE}.inc.c)
-  string(REPLACE "." ";" FORMAT ${OUTPUT_FILE_WLE})
-  list(POP_BACK FORMAT FORMAT2)
+
+  string(REGEX MATCH "\\.([a-z0-9]+)$" FORMAT ${OUTPUT_FILE_WLE})
+  string(SUBSTRING "${FORMAT}" 1 -1 FORMAT)
+
   add_custom_command(
     OUTPUT ${OUTPUT_FILE}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${OUTPUT_DIR}
-    VERBATIM COMMAND $<TARGET_FILE:n64graphics> -s ${TEXTURE_ENCODING} -i ${OUTPUT_FILE} -g ${CMAKE_CURRENT_SOURCE_DIR}/${orgfile} -f ${FORMAT2}
+    VERBATIM COMMAND $<TARGET_FILE:n64graphics> -s ${TEXTURE_ENCODING} -i ${OUTPUT_FILE} -g ${CMAKE_CURRENT_SOURCE_DIR}/${orgfile} -f ${FORMAT}
     DEPENDS n64graphics
   )
   list(APPEND INC_C_FILES ${OUTPUT_FILE})
 endforeach(orgfile)
 
+# handle cake and cake_eu textures
+if (GAME_VERSION STREQUAL "eu")
+  set(CAKE_FILE "cake_eu.png")
+  set(CAKE_TYPE "cake-eu")
+else()
+  set(CAKE_FILE "cake.png")
+  set(CAKE_TYPE "cake")
+endif()
+
 add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/levels/ending/cake.inc.c
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/levels/ending
-    COMMAND $<TARGET_FILE:skyconv> --type cake --split ${CMAKE_CURRENT_SOURCE_DIR}/levels/ending/cake.png ${CMAKE_CURRENT_BINARY_DIR}/levels/ending
-    DEPENDS skyconv
-  )
-  list(APPEND INC_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/levels/ending/cake.inc.c)
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/levels/ending/cake.inc.c
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/levels/ending
+  COMMAND $<TARGET_FILE:skyconv> --type ${CAKE_TYPE} --split ${CMAKE_CURRENT_SOURCE_DIR}/levels/ending/${CAKE_FILE} ${CMAKE_CURRENT_BINARY_DIR}/levels/ending
+  DEPENDS skyconv
+)
+list(APPEND INC_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/levels/ending/cake.inc.c)
 
-  add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text-tmp
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/text/us
-    COMMAND ${CPP} -I${CMAKE_CURRENT_SOURCE_DIR}/text/us ${CMAKE_CURRENT_SOURCE_DIR}/text/define_text.inc.c > ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text-tmp
-  )
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text-tmp
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/text/us
+  COMMAND ${CPP} -I${CMAKE_CURRENT_SOURCE_DIR}/text/us ${CMAKE_CURRENT_SOURCE_DIR}/text/define_text.inc.c > ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text-tmp
+)
 
-  add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text.inc.c
-    COMMAND $<TARGET_FILE:textconv> ${CMAKE_CURRENT_SOURCE_DIR}/charmap.txt  ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text-tmp ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text.inc.c
-    VERBATIM
-    DEPENDS textconv
-    DEPENDS  ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text-tmp
-  )
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text.inc.c
+  COMMAND $<TARGET_FILE:textconv> ${CMAKE_CURRENT_SOURCE_DIR}/charmap.txt  ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text-tmp ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text.inc.c
+  VERBATIM
+  DEPENDS textconv
+  DEPENDS  ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text-tmp
+)
 
-  list(APPEND INC_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text.inc.c)
+list(APPEND INC_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text.inc.c)
 
 #==============================================================================#
 # Sound File Generation                                                        #
@@ -391,7 +461,7 @@ endforeach(aifffile)
 
 add_custom_command(
     OUTPUT sound/sound_data.ctl.inc.c sound/sound_data.tbl.inc.c
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/assemble_sound.py ${CMAKE_CURRENT_BINARY_DIR}/sound/samples/ ${CMAKE_CURRENT_SOURCE_DIR}/sound/sound_banks  ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.ctl ${CMAKE_CURRENT_BINARY_DIR}/sound/ctl_header ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.tbl ${CMAKE_CURRENT_BINARY_DIR}/sound/tbl_header -DVERSION_US ${endian_and_bitwidth}
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/assemble_sound.py ${CMAKE_CURRENT_BINARY_DIR}/sound/samples/ ${CMAKE_CURRENT_SOURCE_DIR}/sound/sound_banks  ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.ctl ${CMAKE_CURRENT_BINARY_DIR}/sound/ctl_header ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.tbl ${CMAKE_CURRENT_BINARY_DIR}/sound/tbl_header ${C_GAME_DEFINES} ${endian_and_bitwidth}
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/conv2hex.py ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.ctl > ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.ctl.inc.c
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/conv2hex.py ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.tbl > ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.tbl.inc.c
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -423,7 +493,7 @@ foreach(sequence_s ${SEQUENCES_S_FILES})
   add_custom_command(
     OUTPUT ${OUTPUT_FILE}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${OUTPUT_DIR}
-    COMMAND  ${CPP} ${CMAKE_CURRENT_SOURCE_DIR}/${sequence_s} -I${CMAKE_CURRENT_SOURCE_DIR}/include -DVERSION_US | ${AS_COMMAND} -o ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_DIR}/${OUTPUT_FILE_WLE}.o
+    COMMAND  ${CPP} ${CMAKE_CURRENT_SOURCE_DIR}/${sequence_s} -I${CMAKE_CURRENT_SOURCE_DIR}/include ${C_GAME_DEFINES} | ${AS_COMMAND} -o ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_DIR}/${OUTPUT_FILE_WLE}.o
     VERBATIM COMMAND ${COPY_COMMAND} -j .rodata ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_DIR}/${OUTPUT_FILE_WLE}.o -O binary ${OUTPUT_FILE}
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${sequence_s}
   )
@@ -432,7 +502,7 @@ endforeach(sequence_s)
 
 add_custom_command(
     OUTPUT sound/sequences.bin.inc.c sound/bank_sets.inc.c
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/assemble_sound.py --sequences ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences.bin ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences_header ${CMAKE_CURRENT_BINARY_DIR}/sound/bank_sets ${CMAKE_CURRENT_SOURCE_DIR}/sound/sound_banks ${CMAKE_CURRENT_SOURCE_DIR}/sound/sequences.json ${SEQUENCES_FILES} -DVERSION_US ${endian_and_bitwidth}
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/assemble_sound.py --sequences ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences.bin ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences_header ${CMAKE_CURRENT_BINARY_DIR}/sound/bank_sets ${CMAKE_CURRENT_SOURCE_DIR}/sound/sound_banks ${CMAKE_CURRENT_SOURCE_DIR}/sound/sequences.json ${SEQUENCES_FILES} ${C_GAME_DEFINES} ${endian_and_bitwidth}
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/conv2hex.py ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences.bin > ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences.bin.inc.c
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/conv2hex.py ${CMAKE_CURRENT_BINARY_DIR}/sound/bank_sets > ${CMAKE_CURRENT_BINARY_DIR}/sound/bank_sets.inc.c
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -445,4 +515,4 @@ add_custom_target(
   DEPENDS ${INC_C_FILES}
 )
 
-add_dependencies(sm64-${VERSION} ConvertIncCFiles)
+add_dependencies(sm64-${GAME_VERSION} ConvertIncCFiles)

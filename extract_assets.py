@@ -143,7 +143,16 @@ def main():
             print("Failed to open " + fname + "! " + str(e))
             sys.exit(1)
         sha1 = hashlib.sha1(roms[lang]).hexdigest()
-        expected_sha1 = "9bef1128717f958171a4afac3ed78ee2bb4e86ce"
+
+        if lang == "jp":
+            expected_sha1 = "8a20a5c83d6ceb0f0506cfc9fa20d8f438cafe51"
+        elif lang == "us":
+            expected_sha1 = "9bef1128717f958171a4afac3ed78ee2bb4e86ce"
+        elif lang == "eu":
+            expected_sha1 = "4ac5721683d0e0b6bbb561b58a71740845dceea9"
+        elif lang == "sh":
+            expected_sha1 = "3f319ae697533a255a1003d09202379d78d5a2e0"
+
         if sha1 != expected_sha1:
             print(
                 fname
