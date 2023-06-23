@@ -58,9 +58,19 @@ void exec_display_list(struct SPTask *spTask) {
 
 static bool gui_show_profiler = false;
 
+// make a struct to hold enhancement values
+static struct {
+    bool enable_60_fps;
+} enhancements;
+
+
 void draw_menu_bar(void* iu) {
     if (igBeginMenu("File", true)) {
         if (igMenuItem_Bool("Quit", "Ctrl+Q", false, true)) { exit(0); }
+        igEndMenu();
+    }
+    if (igBeginMenu("Enhancements", true)) {
+        if (igMenuItem_BoolPtr("60 FPS", NULL, &enhancements.enable_60_fps, true)) { }
         igEndMenu();
     }
     if (igBeginMenu("Debug", true)) {
@@ -73,7 +83,29 @@ void draw_windows(void* ui) {
     HLXShowProfilerWindow(ui, &gui_show_profiler);
 }
 
+static void patch_interpolations(void) {
+    extern void mtx_patch_interpolated(void);
+    extern void patch_screen_transition_interpolated(void);
+    extern void patch_title_screen_scales(void);
+    extern void patch_interpolated_dialog(void);
+    extern void patch_interpolated_hud(void);
+    extern void patch_interpolated_paintings(void);
+    extern void patch_interpolated_bubble_particles(void);
+    extern void patch_interpolated_snow_particles(void);
+    mtx_patch_interpolated();
+    patch_screen_transition_interpolated();
+    patch_title_screen_scales();
+    patch_interpolated_dialog();
+    patch_interpolated_hud();
+    patch_interpolated_paintings();
+    patch_interpolated_bubble_particles();
+    patch_interpolated_snow_particles();
+}
+
 void produce_one_frame(void) {
+    HLXDisplaySetFPS(enhancements.enable_60_fps ? 60 : 30);
+    HLXAudioSetFPS(enhancements.enable_60_fps ? 60 : 30);
+
     HLXDisplayStartFrame();
     game_loop_one_iteration();
 
@@ -90,8 +122,15 @@ void produce_one_frame(void) {
     }
     //printf("Audio samples before submitting: %d\n", audio_api->buffered());
     HLXAudioPlayBuffer((u8 *)audio_buffer, 2 * num_audio_samples * 4);
-    
+
     HLXDisplayEndFrame();
+    
+    if (enhancements.enable_60_fps) {
+        HLXDisplayStartFrame();
+        patch_interpolations();
+        exec_display_list(gGfxSPTask);
+        HLXDisplayEndFrame();
+    }
 }
 
 static void save_config(void) {
