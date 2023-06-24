@@ -394,28 +394,57 @@ else()
 endif()
 
 add_custom_command(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/levels/ending/cake.inc.c
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/levels/ending/${CAKE_TYPE}.inc.c
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/levels/ending
   COMMAND $<TARGET_FILE:skyconv> --type ${CAKE_TYPE} --split ${CMAKE_CURRENT_SOURCE_DIR}/levels/ending/${CAKE_FILE} ${CMAKE_CURRENT_BINARY_DIR}/levels/ending
   DEPENDS skyconv
 )
-list(APPEND INC_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/levels/ending/cake.inc.c)
+list(APPEND INC_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/levels/ending/${CAKE_TYPE}.inc.c)
 
-add_custom_command(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text-tmp
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/text/us
-  COMMAND ${CPP} -I${CMAKE_CURRENT_SOURCE_DIR}/text/us ${CMAKE_CURRENT_SOURCE_DIR}/text/define_text.inc.c > ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text-tmp
-)
+# Encode in-game text strings
+if(GAME_VERSION  STREQUAL "eu")
+  set(LANG us de fr)
+else()
+  set(LANG ${GAME_VERSION})
+endif()
 
-add_custom_command(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text.inc.c
-  COMMAND $<TARGET_FILE:textconv> ${CMAKE_CURRENT_SOURCE_DIR}/charmap.txt  ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text-tmp ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text.inc.c
-  VERBATIM
-  DEPENDS textconv
-  DEPENDS  ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text-tmp
-)
+foreach(lang ${LANG})
+  add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/text/${lang}/define_text-tmp
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/text/${lang}
+    COMMAND ${CPP} -I${CMAKE_CURRENT_SOURCE_DIR}/text/${lang} ${CMAKE_CURRENT_SOURCE_DIR}/text/define_text.inc.c > ${CMAKE_CURRENT_BINARY_DIR}/text/${lang}/define_text-tmp
+  )
 
-list(APPEND INC_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/text/us/define_text.inc.c)
+  add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/text/${lang}/define_text.inc.c
+    COMMAND $<TARGET_FILE:textconv> ${CMAKE_CURRENT_SOURCE_DIR}/charmap.txt  ${CMAKE_CURRENT_BINARY_DIR}/text/${lang}/define_text-tmp ${CMAKE_CURRENT_BINARY_DIR}/text/${lang}/define_text.inc.c
+    VERBATIM
+    DEPENDS textconv
+    DEPENDS  ${CMAKE_CURRENT_BINARY_DIR}/text/${lang}/define_text-tmp
+  )
+
+  list(APPEND INC_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/text/${lang}/define_text.inc.c)
+endforeach()
+
+if(GAME_VERSION  STREQUAL "eu")
+  foreach(lang ${LANG})
+    add_custom_command(
+      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/text/${lang}/define_courses-tmp
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/text/${lang}
+      COMMAND ${CPP} -I${CMAKE_CURRENT_SOURCE_DIR}/text/${lang} ${CMAKE_CURRENT_SOURCE_DIR}/text/define_courses.inc.c > ${CMAKE_CURRENT_BINARY_DIR}/text/${lang}/define_courses-tmp
+    )
+
+    add_custom_command(
+      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/text/${lang}/define_courses.inc.c
+      COMMAND $<TARGET_FILE:textconv> ${CMAKE_CURRENT_SOURCE_DIR}/charmap.txt  ${CMAKE_CURRENT_BINARY_DIR}/text/${lang}/define_courses-tmp ${CMAKE_CURRENT_BINARY_DIR}/text/${lang}/define_courses.inc.c
+      VERBATIM
+      DEPENDS textconv
+      DEPENDS  ${CMAKE_CURRENT_BINARY_DIR}/text/${lang}/define_courses-tmp
+    )
+
+    list(APPEND INC_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/text/${lang}/define_courses.inc.c)
+  endforeach()
+endif()
 
 #==============================================================================#
 # Sound File Generation                                                        #
