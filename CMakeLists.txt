@@ -39,12 +39,6 @@ vcpkg_install_packages(fontconfig)
 endif()
 endif()
 
-if (MSVC)
-set(CPP "${CMAKE_C_COMPILER}" "/EP")
-else()
-set(CPP "${CMAKE_C_COMPILER}" "-E" "-P" "-Wno-trigraphs" "-x" "c")
-endif()
-
 # Set and validate the game version
 file(GLOB_RECURSE BASEROM_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "baserom.*.z64")
 foreach(BASEROM_FILE ${BASEROM_FILES})
@@ -112,19 +106,21 @@ add_custom_target(
 
 # Create list of defines for the game version
 set(GAME_DEFINES VERSION_${UPPER_GAME_VERSION}=1)
-if (${GAME_VERSION} STREQUAL "jp" OR ${GAME_VERSION} STREQUAL "us")
-    list(APPEND GAME_DEFINES VERSION_JP_US=1)
-endif()
 
 # define a C_GAME_DEFINES which is every game define prefixed with -D
 foreach(GAME_DEFINE ${GAME_DEFINES})
     list(APPEND C_GAME_DEFINES -D${GAME_DEFINE})
 endforeach()
 
-
 #==============================================================================#
 # Compile Definitions                                                          #
 #==============================================================================#
+
+if (MSVC)
+set(CPP "${CMAKE_C_COMPILER}" "/EP" "${C_GAME_DEFINES}")
+else()
+set(CPP "${CMAKE_C_COMPILER}" "-E" "-P" "-Wno-trigraphs" "-x" "c" "${C_GAME_DEFINES}")
+endif()
 
 # Add compile definitions for the target
 add_compile_definitions(
@@ -422,8 +418,8 @@ foreach(lang ${LANG})
     DEPENDS textconv
     DEPENDS  ${CMAKE_CURRENT_BINARY_DIR}/text/${lang}/define_text-tmp
   )
-
   list(APPEND INC_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/text/${lang}/define_text.inc.c)
+
 endforeach()
 
 if(GAME_VERSION  STREQUAL "eu")
