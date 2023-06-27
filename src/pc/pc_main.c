@@ -1,5 +1,3 @@
-#define USE_NEW_RENDERER 1
-
 #include <stdlib.h>
 #include <stdbool.h>
 #include <helix/helix.h>
@@ -111,7 +109,7 @@ void main_func(void) {
     configfile_load(CONFIG_FILE);
     atexit(save_config);
     
-    HLXDisplaySetup("Nova64 - Super Mario 64", &draw_menu_bar, &draw_windows);
+    HLXDisplaySetup("Super Mario 64", &draw_menu_bar, &draw_windows);
     HLXAudioSetup(32000, 2);
 
     audio_init();
