@@ -26,7 +26,8 @@ cmake --build build-cmake --config Debug
 
 ### Linux
 
-1. Install prerequisites (Ubuntu): `sudo apt install -y git build-essential pkg-config libusb-1.0-0-dev`.
+1. Install prerequisites (Ubuntu): `sudo apt install -y git build-essential pkg-config libusb-1.0-0-dev cmake ninja-build fontconfig libasound2-dev libfreetype-dev libexpat1-dev libfreetype6-dev libfontconfig1-dev libudev-dev pulseaudio libssl-dev libxkbcommon-dev`.
+Note that you have to have either X11 or Wayland installed.
 2. Clone the repo: `git clone https://github.com/nova-port/Nova64.git`, which will create a directory `Nova64` and then **enter** it `cd Nova64`.
 3. Make sure to clone the submodules: `git submodule update --init --recursive`.
 4. Place a Super Mario 64 ROM called `baserom.<VERSION>.z64` into the repository's root directory for asset extraction, where `VERSION` can be `us`, `jp`, or `eu`.

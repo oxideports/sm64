@@ -279,7 +279,6 @@ else()
     find_package(X11 REQUIRED)
     find_package(libUsb REQUIRED)
     find_package(ALSA REQUIRED)
-    find_package(PulseAudio REQUIRED)
     find_package(Freetype REQUIRED)
     find_package(udev REQUIRED)
     target_link_libraries(helix INTERFACE ${ALSA_LIBRARY})
@@ -290,7 +289,7 @@ else()
     target_link_libraries(helix INTERFACE Fontconfig::Fontconfig)
     target_link_libraries(helix INTERFACE libUsb::libUsb)
 
-    target_link_libraries(helix INTERFACE "-lstdc++")
+    target_link_libraries(helix INTERFACE "-lstdc++ -lm -ldl")
 endif()
 
 #==============================================================================#
