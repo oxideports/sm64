@@ -242,6 +242,7 @@ endif()
 # Helix Integration                                                            #
 #==============================================================================#
 
+set(Rust_TOOLCHAIN "nightly" CACHE STRING "SM64Synth requires nightly")
 add_subdirectory(./corrosion)
 
 file(GLOB_RECURSE HELIX_CPP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/helix/cpp/*.c")
@@ -291,6 +292,13 @@ else()
 
     target_link_libraries(helix INTERFACE "-lstdc++ -lm -ldl")
 endif()
+
+#==============================================================================#
+# SM64Synth Integration                                                            #
+#==============================================================================#
+
+corrosion_import_crate(MANIFEST_PATH ${CMAKE_CURRENT_SOURCE_DIR}/sm64synth/Cargo.toml)
+target_link_libraries(sm64-${VERSION} PRIVATE sm64-synth)
 
 #==============================================================================#
 # Texture Generation                                                           #
