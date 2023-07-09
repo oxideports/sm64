@@ -4,3 +4,6 @@
 [submodule "corrosion"]
 	path = corrosion
 	url = https://github.com/corrosion-rs/corrosion.git
+[submodule "sm64synth"]
+	path = sm64synth
+	url = https://gitlab.com/DeKrain/sm64synth
