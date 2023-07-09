@@ -297,6 +297,33 @@ endif()
 # SM64Synth Integration                                                            #
 #==============================================================================#
 
+set(ENDIAN "le")
+add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/sm64synth/data/sound_data/sound_data.ctl.${ENDIAN}.bin
+                ${CMAKE_CURRENT_SOURCE_DIR}/sm64synth/data/sound_data/sound_data.tbl.${ENDIAN}.bin
+                ${CMAKE_CURRENT_SOURCE_DIR}/sm64synth/data/sound_data/sequences.${ENDIAN}.bin
+                ${CMAKE_CURRENT_SOURCE_DIR}/sm64synth/data/sound_data/bank_sets.${ENDIAN}.bin
+
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.ctl"
+        "sm64synth/data/sound_data/sound_data.ctl.${ENDIAN}.bin"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.tbl"
+        "sm64synth/data/sound_data/sound_data.tbl.${ENDIAN}.bin"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_BINARY_DIR}/sound/sequences.bin"
+        "sm64synth/data/sound_data/sequences.${ENDIAN}.bin"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_BINARY_DIR}/sound/bank_sets"
+        "sm64synth/data/sound_data/bank_sets.${ENDIAN}.bin"
+
+        COMMAND ${CMAKE_COMMAND} -E echo "Copied sound_data files to sm64synth/data/sound_data"
+
+        DEPENDS ${TABLE_FILES}
+        DEPENDS ${SEQUENCES_FILES}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 corrosion_import_crate(MANIFEST_PATH ${CMAKE_CURRENT_SOURCE_DIR}/sm64synth/Cargo.toml)
 target_link_libraries(sm64-${VERSION} PRIVATE sm64-synth)
 
