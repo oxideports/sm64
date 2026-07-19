@@ -70,3 +70,9 @@ build/*
 !/sound/**/*custom*/**/*.aiff
 !/assets/**/*custom*.bin
 !/assets/**/*custom*/**/*.bin
+
+# Brainstorming/writing-plans specs + plans; kept local, not pushed
+/docs/superpowers/
+
+# macOS ignores
+.DS_Store
