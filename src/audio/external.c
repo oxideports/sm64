@@ -792,8 +792,8 @@ struct SPTask *create_next_audio_frame_task(void) {
     task->dram_stack_size = 0;
     task->output_buff = NULL;
     task->output_buff_size = NULL;
-    task->data_ptr = gAudioCmdBuffers[index];
-    task->data_size = writtenCmds * sizeof(u64);
+    task->data_ptr = (u64 *) gAudioCmdBuffers[index];
+    task->data_size = writtenCmds * sizeof(Acmd);
 
 // The audio task never yields, so having a yield buffer is pointless.
 // This wastefulness was fixed in US.

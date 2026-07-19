@@ -10,6 +10,9 @@
 #include "engine/level_script.h"
 #include "game_init.h"
 #include "main.h"
+#ifndef TARGET_N64
+#include <helix/runtime.h> // HLXRenderSetMicrocode/DataFormat: declare this build's render config to helix
+#endif
 #include "memory.h"
 #include "profiler.h"
 #include "save_file.h"
@@ -255,6 +258,20 @@ void create_gfx_task_structure(void) {
     gGfxSPTask->task.t.flags = 0;
     gGfxSPTask->task.t.ucode = rspF3DStart;
     gGfxSPTask->task.t.ucode_data = rspF3DDataStart;
+#ifndef TARGET_N64
+    // Declare this build's render config to the host renderer, mirroring the ucode above: helix is
+    // guest-agnostic, so the guest (which owns these GRUCODE/GBI_FLOATS macros) supplies the values.
+#ifdef F3D_OLD
+    HLXRenderSetMicrocode(HLX_MICROCODE_F3D);
+#else
+    HLXRenderSetMicrocode(HLX_MICROCODE_F3DEX2);
+#endif
+#ifdef GBI_FLOATS
+    HLXRenderSetDataFormat(HLX_DATAFMT_FLOAT);
+#else
+    HLXRenderSetDataFormat(HLX_DATAFMT_FIXED);
+#endif
+#endif
     gGfxSPTask->task.t.ucode_size = SP_UCODE_SIZE; // (this size is ignored)
     gGfxSPTask->task.t.ucode_data_size = SP_UCODE_DATA_SIZE;
     gGfxSPTask->task.t.dram_stack = (u64 *) gGfxSPTaskStack;

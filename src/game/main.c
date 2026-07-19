@@ -1,5 +1,8 @@
 #include <ultra64.h>
 #include <stdio.h>
+#ifdef NO_SEGMENTED_MEMORY
+#include <stdlib.h> // host: malloc for the native-pointer main pool
+#endif
 
 #include "sm64.h"
 #include "audio/external.h"
@@ -129,8 +132,16 @@ void setup_mesg_queues(void) {
 }
 
 void alloc_pool(void) {
+#ifdef NO_SEGMENTED_MEMORY
+    // helix has no guest RDRAM at the fixed KSEG0 pool range; back the main pool with host
+    // memory (doubled on 64-bit hosts for the wider pointers).
+    size_t poolSize = (size_t) SEG_POOL_SIZE * (sizeof(void *) / 4);
+    void *start = malloc(poolSize);
+    void *end = (u8 *) start + poolSize;
+#else
     void *start = (void *) SEG_POOL_START;
     void *end = (void *) SEG_POOL_END;
+#endif
 
     main_pool_init(start, end);
     gEffectsMemoryPool = mem_pool_init(0x4000, MEMORY_POOL_LEFT);

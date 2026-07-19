@@ -1,0 +1,6 @@
+[submodule "helix"]
+	path = helix
+	url = https://github.com/retrofoundry/helix.git
+[submodule "corrosion"]
+	path = corrosion
+	url = https://github.com/corrosion-rs/corrosion.git

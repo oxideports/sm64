@@ -14,6 +14,46 @@ It builds the following ROMs:
 This repo does not include all assets necessary for compiling the ROMs.
 A prior copy of the game is required to extract the assets.
 
+## Running on PC (helix)
+
+This fork runs Super Mario 64 natively on your computer — no emulator — via **helix**, a
+native-pointer libultra runtime, with rendering through [fast3d-rs](https://github.com/retrofoundry/fast3d-rs).
+The game runs on its original `src/game/main.c` threading — helix stands in for the N64's OS, RSP,
+and RDP — with only minimal, mostly `#ifdef`-guarded additions to the decomp source.
+
+> **Status:** the US version (`F3D_OLD` microcode) boots, renders, and plays audio on macOS.
+> Linux and Windows are planned.
+
+### Prerequisites
+
+- [Nix](https://nixos.org/download) + [devenv](https://devenv.sh/getting-started/) — provides the
+  toolchain (CMake, Ninja, Rust, Python).
+- macOS: Xcode (the build uses Xcode's clang for the system frameworks).
+- A Super Mario 64 US ROM named `baserom.us.z64` for one-time asset extraction.
+
+### Steps
+
+```sh
+# 1. Clone with submodules (helix + corrosion)
+git clone --recurse-submodules https://github.com/oxideports/sm64.git
+cd sm64
+
+# 2. Place your ROM in the repo root for asset extraction
+cp /path/to/baserom.us.z64 .
+
+# 3. Enter the dev environment (provides the whole toolchain)
+devenv shell
+
+# 4. Configure, extract assets, build, then run
+configure
+extract
+build
+run
+```
+
+`run` launches `build-cmake/sm64-us`. To build against a local checkout of fast3d, uncomment the
+`[patch]` block in `helix/Cargo.toml`.
+
 ## Quick Start (for Ubuntu)
 
 1. Install prerequisites: `sudo apt install -y binutils-mips-linux-gnu build-essential git pkgconf python3`

@@ -1089,7 +1089,11 @@ void wait_for_audio_frames(s32 frames) {
     gAudioFrameCount = 0;
     // Sound thread will update gAudioFrameCount
     while (gAudioFrameCount < frames) {
-        // spin
+#ifndef TARGET_N64
+        // On a cooperative host runtime a bare spin holds the run token and starves the sound
+        // thread that advances gAudioFrameCount; yield so it runs. (N64 keeps the exact busy-wait.)
+        osYieldThread();
+#endif
     }
 }
 #endif
@@ -1307,7 +1311,7 @@ void audio_reset_session(void) {
 
 #if defined(VERSION_JP) || defined(VERSION_US)
     for (j = 0; j < 2; j++) {
-        gAudioCmdBuffers[j] = soundAlloc(&gNotesAndBuffersPool, gMaxAudioCmds * sizeof(u64));
+        gAudioCmdBuffers[j] = soundAlloc(&gNotesAndBuffersPool, gMaxAudioCmds * sizeof(Acmd));
     }
 #endif
 
@@ -1319,7 +1323,7 @@ void audio_reset_session(void) {
     gNoteSubsEu = soundAlloc(&gNotesAndBuffersPool, (gAudioBufferParameters.updatesPerFrame * gMaxSimultaneousNotes) * sizeof(struct NoteSubEu));
 
     for (j = 0; j != 2; j++) {
-        gAudioCmdBuffers[j] = soundAlloc(&gNotesAndBuffersPool, gMaxAudioCmds * sizeof(u64));
+        gAudioCmdBuffers[j] = soundAlloc(&gNotesAndBuffersPool, gMaxAudioCmds * sizeof(Acmd));
     }
 
     for (j = 0; j < 4; j++) {
