@@ -45,6 +45,10 @@ set(VERSION us)
 
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
+# Without a baserom (CI): tools/stub_assets.py writes zeroed stand-ins for the extracted assets, and
+# the steps that convert extracted files are left out. The executable links but does not run.
+option(SM64_ASSET_STUBS "Build against zeroed stand-ins for the extracted assets" OFF)
+
 #==============================================================================#
 # Decomp asset tools (built via decomp's own Makefiles — kept pristine)         #
 #==============================================================================#
@@ -171,14 +175,24 @@ add_custom_command(
 )
 list(APPEND ALL_FILES ${CMAKE_CURRENT_BINARY_DIR}/assets/mario_anim_data.c)
 
-add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/assets/demo_data.c
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/assets
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/demo_data_converter.py ${CMAKE_CURRENT_SOURCE_DIR}/assets/demo_data.json -DVERSION_US > ${CMAKE_CURRENT_BINARY_DIR}/assets/demo_data.c
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    VERBATIM
-)
-list(APPEND ALL_FILES ${CMAKE_CURRENT_BINARY_DIR}/assets/demo_data.c)
+if(SM64_ASSET_STUBS)
+  execute_process(
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/stub_assets.py ${CMAKE_CURRENT_BINARY_DIR}
+      RESULT_VARIABLE STUB_ASSETS_RESULT)
+  if(STUB_ASSETS_RESULT)
+    message(FATAL_ERROR "tools/stub_assets.py failed")
+  endif()
+  list(APPEND ALL_FILES ${CMAKE_CURRENT_BINARY_DIR}/asset_stubs.c)
+else()
+  add_custom_command(
+      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/assets/demo_data.c
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/assets
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/demo_data_converter.py ${CMAKE_CURRENT_SOURCE_DIR}/assets/demo_data.json -DVERSION_US > ${CMAKE_CURRENT_BINARY_DIR}/assets/demo_data.c
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      VERBATIM
+  )
+  list(APPEND ALL_FILES ${CMAKE_CURRENT_BINARY_DIR}/assets/demo_data.c)
+endif()
 
 #==============================================================================#
 # Generated: in-game text (decomp charmap is preprocessed, then textconv)       #
@@ -332,14 +346,16 @@ target_sources(sm64-${VERSION} PRIVATE
     reality64_shims/rsp_ucode_stubs.c
     ${CMAKE_CURRENT_BINARY_DIR}/rsp_audio_data.S)
 
-add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/levels/ending/cake.inc.c
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/levels/ending
-    COMMAND ${SKYCONV} --type cake --split ${CMAKE_CURRENT_SOURCE_DIR}/levels/ending/cake.png ${CMAKE_CURRENT_BINARY_DIR}/levels/ending
-    DEPENDS BuildTools
-    VERBATIM
-)
-list(APPEND INC_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/levels/ending/cake.inc.c)
+if(NOT SM64_ASSET_STUBS)
+  add_custom_command(
+      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/levels/ending/cake.inc.c
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/levels/ending
+      COMMAND ${SKYCONV} --type cake --split ${CMAKE_CURRENT_SOURCE_DIR}/levels/ending/cake.png ${CMAKE_CURRENT_BINARY_DIR}/levels/ending
+      DEPENDS BuildTools
+      VERBATIM
+  )
+  list(APPEND INC_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/levels/ending/cake.inc.c)
+endif()
 
 #==============================================================================#
 # define_text.inc.c (cpp | textconv, US)                                        #
@@ -391,89 +407,91 @@ list(APPEND INC_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/text/debug_text.raw.inc.c)
 #==============================================================================#
 # Sound generation (aiff -> table -> aifc -> assemble_sound)                     #
 #==============================================================================#
-execute_process(
-    OUTPUT_VARIABLE endian_and_bitwidth
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/determine-endian-bitwidth.py
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
-string(STRIP "${endian_and_bitwidth}" endian_and_bitwidth)
-string(REPLACE " " ";" endian_and_bitwidth "${endian_and_bitwidth}")
-
-set(TABLE_FILES "")
-set(AIFC_FILES "")
-file(GLOB_RECURSE AIFF_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "sound/samples/*.aiff")
-foreach(aifffile ${AIFF_FILES})
-  get_filename_component(OUTPUT_FILE_WLE ${aifffile} NAME_WLE)
-  get_filename_component(OUTPUT_DIR ${aifffile} DIRECTORY)
-  set(TABLE_FILE ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_DIR}/${OUTPUT_FILE_WLE}.table)
-  set(AIFC_FILE  ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_DIR}/${OUTPUT_FILE_WLE}.aifc)
-  add_custom_command(
-    OUTPUT ${TABLE_FILE}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_DIR}
-    COMMAND ${AIFF_EXTRACT_CODEBOOK} ${CMAKE_CURRENT_SOURCE_DIR}/${aifffile} > ${TABLE_FILE}
-    DEPENDS BuildTools ${CMAKE_CURRENT_SOURCE_DIR}/${aifffile}
-    VERBATIM
+if(NOT SM64_ASSET_STUBS)
+  execute_process(
+      OUTPUT_VARIABLE endian_and_bitwidth
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/determine-endian-bitwidth.py
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   )
+  string(STRIP "${endian_and_bitwidth}" endian_and_bitwidth)
+  string(REPLACE " " ";" endian_and_bitwidth "${endian_and_bitwidth}")
+
+  set(TABLE_FILES "")
+  set(AIFC_FILES "")
+  file(GLOB_RECURSE AIFF_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "sound/samples/*.aiff")
+  foreach(aifffile ${AIFF_FILES})
+    get_filename_component(OUTPUT_FILE_WLE ${aifffile} NAME_WLE)
+    get_filename_component(OUTPUT_DIR ${aifffile} DIRECTORY)
+    set(TABLE_FILE ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_DIR}/${OUTPUT_FILE_WLE}.table)
+    set(AIFC_FILE  ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_DIR}/${OUTPUT_FILE_WLE}.aifc)
+    add_custom_command(
+      OUTPUT ${TABLE_FILE}
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_DIR}
+      COMMAND ${AIFF_EXTRACT_CODEBOOK} ${CMAKE_CURRENT_SOURCE_DIR}/${aifffile} > ${TABLE_FILE}
+      DEPENDS BuildTools ${CMAKE_CURRENT_SOURCE_DIR}/${aifffile}
+      VERBATIM
+    )
+    add_custom_command(
+      OUTPUT ${AIFC_FILE}
+      COMMAND ${VADPCM_ENC} -c ${TABLE_FILE} ${CMAKE_CURRENT_SOURCE_DIR}/${aifffile} ${AIFC_FILE}
+      DEPENDS BuildTools ${TABLE_FILE} ${CMAKE_CURRENT_SOURCE_DIR}/${aifffile}
+      VERBATIM
+    )
+    list(APPEND TABLE_FILES ${TABLE_FILE})
+    list(APPEND AIFC_FILES ${AIFC_FILE})
+  endforeach(aifffile)
+
   add_custom_command(
-    OUTPUT ${AIFC_FILE}
-    COMMAND ${VADPCM_ENC} -c ${TABLE_FILE} ${CMAKE_CURRENT_SOURCE_DIR}/${aifffile} ${AIFC_FILE}
-    DEPENDS BuildTools ${TABLE_FILE} ${CMAKE_CURRENT_SOURCE_DIR}/${aifffile}
-    VERBATIM
+      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.ctl.inc.c ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.tbl.inc.c
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/sound
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/assemble_sound.py ${CMAKE_CURRENT_BINARY_DIR}/sound/samples/ ${CMAKE_CURRENT_SOURCE_DIR}/sound/sound_banks ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.ctl ${CMAKE_CURRENT_BINARY_DIR}/sound/ctl_header ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.tbl ${CMAKE_CURRENT_BINARY_DIR}/sound/tbl_header -DVERSION_US ${endian_and_bitwidth}
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/conv2hex.py ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.ctl > ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.ctl.inc.c
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/conv2hex.py ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.tbl > ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.tbl.inc.c
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      DEPENDS ${TABLE_FILES} ${AIFC_FILES}
+      VERBATIM
   )
-  list(APPEND TABLE_FILES ${TABLE_FILE})
-  list(APPEND AIFC_FILES ${AIFC_FILE})
-endforeach(aifffile)
+  list(APPEND INC_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.ctl.inc.c ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.tbl.inc.c)
 
-add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.ctl.inc.c ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.tbl.inc.c
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/sound
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/assemble_sound.py ${CMAKE_CURRENT_BINARY_DIR}/sound/samples/ ${CMAKE_CURRENT_SOURCE_DIR}/sound/sound_banks ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.ctl ${CMAKE_CURRENT_BINARY_DIR}/sound/ctl_header ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.tbl ${CMAKE_CURRENT_BINARY_DIR}/sound/tbl_header -DVERSION_US ${endian_and_bitwidth}
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/conv2hex.py ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.ctl > ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.ctl.inc.c
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/conv2hex.py ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.tbl > ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.tbl.inc.c
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    DEPENDS ${TABLE_FILES} ${AIFC_FILES}
-    VERBATIM
-)
-list(APPEND INC_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.ctl.inc.c ${CMAKE_CURRENT_BINARY_DIR}/sound/sound_data.tbl.inc.c)
+  file(GLOB SEQ_M64_FILES ${CMAKE_CURRENT_SOURCE_DIR}/sound/sequences/us/*.m64)
 
-file(GLOB SEQ_M64_FILES ${CMAKE_CURRENT_SOURCE_DIR}/sound/sequences/us/*.m64)
+  # Assemble .s sequences (e.g. 00_sound_player.s) into .m64 (rodata blob).
+  # macOS clang 'as' can't emit the ELF layout objcopy needs, so use the mingw cross tools
+  # (provided by devenv) on Darwin, like the reference port; plain as/objcopy elsewhere.
+  if(APPLE)
+    set(SEQ_AS i686-w64-mingw32-as)
+    set(SEQ_OBJCOPY i686-w64-mingw32-objcopy)
+  else()
+    set(SEQ_AS as)
+    set(SEQ_OBJCOPY objcopy)
+  endif()
+  file(GLOB SEQ_S_FILES ${CMAKE_CURRENT_SOURCE_DIR}/sound/sequences/*.s)
+  foreach(seq_s ${SEQ_S_FILES})
+    get_filename_component(SEQ_WLE ${seq_s} NAME_WLE)
+    set(SEQ_M64_OUT ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences/${SEQ_WLE}.m64)
+    add_custom_command(
+      OUTPUT ${SEQ_M64_OUT}
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences
+      COMMAND ${CPP} ${seq_s} -I${CMAKE_CURRENT_SOURCE_DIR}/include -DVERSION_US | ${SEQ_AS} -o ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences/${SEQ_WLE}.o
+      COMMAND ${SEQ_OBJCOPY} -j .rodata ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences/${SEQ_WLE}.o -O binary ${SEQ_M64_OUT}
+      DEPENDS ${seq_s}
+      VERBATIM
+    )
+    list(APPEND SEQ_M64_FILES ${SEQ_M64_OUT})
+  endforeach()
 
-# Assemble .s sequences (e.g. 00_sound_player.s) into .m64 (rodata blob).
-# macOS clang 'as' can't emit the ELF layout objcopy needs, so use the mingw cross tools
-# (provided by devenv) on Darwin, like the reference port; plain as/objcopy elsewhere.
-if(APPLE)
-  set(SEQ_AS i686-w64-mingw32-as)
-  set(SEQ_OBJCOPY i686-w64-mingw32-objcopy)
-else()
-  set(SEQ_AS as)
-  set(SEQ_OBJCOPY objcopy)
+  add_custom_command(
+      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences.bin.inc.c ${CMAKE_CURRENT_BINARY_DIR}/sound/bank_sets.inc.c
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/sound
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/assemble_sound.py --sequences ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences.bin ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences_header ${CMAKE_CURRENT_BINARY_DIR}/sound/bank_sets ${CMAKE_CURRENT_SOURCE_DIR}/sound/sound_banks ${CMAKE_CURRENT_SOURCE_DIR}/sound/sequences.json ${SEQ_M64_FILES} -DVERSION_US ${endian_and_bitwidth}
+      DEPENDS ${SEQ_M64_FILES}
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/conv2hex.py ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences.bin > ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences.bin.inc.c
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/conv2hex.py ${CMAKE_CURRENT_BINARY_DIR}/sound/bank_sets > ${CMAKE_CURRENT_BINARY_DIR}/sound/bank_sets.inc.c
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      VERBATIM
+  )
+  list(APPEND INC_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences.bin.inc.c ${CMAKE_CURRENT_BINARY_DIR}/sound/bank_sets.inc.c)
 endif()
-file(GLOB SEQ_S_FILES ${CMAKE_CURRENT_SOURCE_DIR}/sound/sequences/*.s)
-foreach(seq_s ${SEQ_S_FILES})
-  get_filename_component(SEQ_WLE ${seq_s} NAME_WLE)
-  set(SEQ_M64_OUT ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences/${SEQ_WLE}.m64)
-  add_custom_command(
-    OUTPUT ${SEQ_M64_OUT}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences
-    COMMAND ${CPP} ${seq_s} -I${CMAKE_CURRENT_SOURCE_DIR}/include -DVERSION_US | ${SEQ_AS} -o ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences/${SEQ_WLE}.o
-    COMMAND ${SEQ_OBJCOPY} -j .rodata ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences/${SEQ_WLE}.o -O binary ${SEQ_M64_OUT}
-    DEPENDS ${seq_s}
-    VERBATIM
-  )
-  list(APPEND SEQ_M64_FILES ${SEQ_M64_OUT})
-endforeach()
-
-add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences.bin.inc.c ${CMAKE_CURRENT_BINARY_DIR}/sound/bank_sets.inc.c
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/sound
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/assemble_sound.py --sequences ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences.bin ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences_header ${CMAKE_CURRENT_BINARY_DIR}/sound/bank_sets ${CMAKE_CURRENT_SOURCE_DIR}/sound/sound_banks ${CMAKE_CURRENT_SOURCE_DIR}/sound/sequences.json ${SEQ_M64_FILES} -DVERSION_US ${endian_and_bitwidth}
-    DEPENDS ${SEQ_M64_FILES}
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/conv2hex.py ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences.bin > ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences.bin.inc.c
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/conv2hex.py ${CMAKE_CURRENT_BINARY_DIR}/sound/bank_sets > ${CMAKE_CURRENT_BINARY_DIR}/sound/bank_sets.inc.c
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    VERBATIM
-)
-list(APPEND INC_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/sound/sequences.bin.inc.c ${CMAKE_CURRENT_BINARY_DIR}/sound/bank_sets.inc.c)
 
 add_custom_target(ConvertIncCFiles DEPENDS ${INC_C_FILES})
 add_dependencies(sm64-${VERSION} ConvertIncCFiles)
