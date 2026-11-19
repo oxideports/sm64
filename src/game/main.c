@@ -1,5 +1,8 @@
 #include <ultra64.h>
 #include <stdio.h>
+#ifdef NO_SEGMENTED_MEMORY
+#include <stdlib.h> // host: malloc for the native-pointer main pool
+#endif
 
 #include "sm64.h"
 #include "audio/external.h"
@@ -11,6 +14,9 @@
 #include "segments.h"
 #include "segment_symbols.h"
 #include "main.h"
+#ifndef TARGET_N64
+#include <reality64/runtime.h>
+#endif
 #include "rumble_init.h"
 
 // Message IDs
@@ -129,8 +135,17 @@ void setup_mesg_queues(void) {
 }
 
 void alloc_pool(void) {
+#ifdef NO_SEGMENTED_MEMORY
+    // reality64 has no guest RDRAM at the fixed KSEG0 pool range; back the main pool with host
+    // memory (doubled on 64-bit hosts for the wider pointers).
+    size_t poolSize = (size_t) SEG_POOL_SIZE * (sizeof(void *) / 4);
+    void *start = malloc(poolSize);
+    R64RegisterGuestMemory(start, poolSize);
+    void *end = (u8 *) start + poolSize;
+#else
     void *start = (void *) SEG_POOL_START;
     void *end = (void *) SEG_POOL_END;
+#endif
 
     main_pool_init(start, end);
     gEffectsMemoryPool = mem_pool_init(0x4000, MEMORY_POOL_LEFT);
@@ -455,6 +470,19 @@ void thread1_idle(UNUSED void *arg) {
 void main_func(void) {
     UNUSED u8 filler[64];
 
+#ifndef TARGET_N64
+    static const R64RspBinding sRspBindings[] = {
+#ifdef F3D_OLD
+        { rspF3DStart, R64_RSP_GFX_F3D },
+#else
+        { rspF3DStart, R64_RSP_GFX_F3DEX2 },
+#endif
+        { rspAspMainStart, R64_RSP_AUDIO_ACMD },
+    };
+
+    R64SetWindowTitle("Super Mario 64");
+    R64RspRegister(sRspBindings, ARRAY_COUNT(sRspBindings));
+#endif
     osInitialize();
     stub_main_1();
     create_thread(&gIdleThread, 1, thread1_idle, NULL, gIdleThreadStack + 0x800, 100);

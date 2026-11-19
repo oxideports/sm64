@@ -10,6 +10,9 @@
 #include "engine/level_script.h"
 #include "game_init.h"
 #include "main.h"
+#ifndef TARGET_N64
+#include <reality64/runtime.h> // R64RenderSetDataFormat
+#endif
 #include "memory.h"
 #include "profiler.h"
 #include "save_file.h"
@@ -255,6 +258,14 @@ void create_gfx_task_structure(void) {
     gGfxSPTask->task.t.flags = 0;
     gGfxSPTask->task.t.ucode = rspF3DStart;
     gGfxSPTask->task.t.ucode_data = rspF3DDataStart;
+#ifndef TARGET_N64
+    // reality64 is guest-agnostic, so the guest (which owns GBI_FLOATS) declares its vertex layout.
+#ifdef GBI_FLOATS
+    R64RenderSetDataFormat(R64_DATAFMT_FLOAT);
+#else
+    R64RenderSetDataFormat(R64_DATAFMT_FIXED);
+#endif
+#endif
     gGfxSPTask->task.t.ucode_size = SP_UCODE_SIZE; // (this size is ignored)
     gGfxSPTask->task.t.ucode_data_size = SP_UCODE_DATA_SIZE;
     gGfxSPTask->task.t.dram_stack = (u64 *) gGfxSPTaskStack;
